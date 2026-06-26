@@ -37,13 +37,13 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.MessageIndicator;
-import net.minecraft.item.Item;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
+import net.minecraft.world.item.Item;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.Vec3i;
 
 /**
  * Baritone's settings. Settings apply to all Baritone instances.
@@ -1319,10 +1319,9 @@ public final class Settings {
      * {@link Setting#value};
      */
     @JavaOnly
-    public final Setting<Consumer<Text>> logger = new Setting<>((msg) -> {
+    public final Setting<Consumer<Component>> logger = new Setting<>((msg) -> {
         try {
-            final MessageIndicator tag = useMessageTag.value ? Helper.MESSAGE_TAG : null;
-            MinecraftClient.getInstance().inGameHud.getChatHud().addMessage(msg, null, tag);
+            Minecraft.getInstance().player.sendSystemMessage(msg);
         } catch (Throwable t) {
             LOGGER.warn("Failed to log message to chat: " + msg.getString(), t);
         }
@@ -1342,7 +1341,7 @@ public final class Settings {
      * {@link Setting#value};
      */
     @JavaOnly
-    public final Setting<BiConsumer<Text, Text>> toaster = new Setting<>(BaritoneToast::addOrUpdate);
+    public final Setting<BiConsumer<Component, Component>> toaster = new Setting<>(BaritoneToast::addOrUpdate);
 
     /**
      * Print out ALL command exceptions as a stack trace to stdout, even simple syntax errors

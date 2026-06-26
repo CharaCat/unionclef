@@ -20,7 +20,7 @@ package baritone.api.schematic.mask;
 import baritone.api.schematic.mask.operator.BinaryOperatorMask;
 import baritone.api.schematic.mask.operator.NotMask;
 import baritone.api.utils.BooleanBinaryOperators;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * A mask that is context-free. In other words, it doesn't require the current block state to determine if a relative

@@ -37,8 +37,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
 
 public final class ExploreProcess extends BaritoneProcessHelper implements IExploreProcess {
 
@@ -223,13 +223,13 @@ public final class ExploreProcess extends BaritoneProcessHelper implements IExpl
             logDirect("Loaded " + positions.length + " positions");
             inFilter = new LongOpenHashSet();
             for (MyChunkPos mcp : positions) {
-                inFilter.add(ChunkPos.toLong(mcp.x, mcp.z));
+                inFilter.add(ChunkPos.pack(mcp.x(), mcp.z()));
             }
         }
 
         @Override
         public Status isAlreadyExplored(int chunkX, int chunkZ) {
-            if (inFilter.contains(ChunkPos.toLong(chunkX, chunkZ)) ^ invert) {
+            if (inFilter.contains(ChunkPos.pack(chunkX, chunkZ)) ^ invert) {
                 // either it's on the list of explored chunks, or it's not on the list of unexplored chunks
                 // either way, we have it
                 return Status.EXPLORED;
@@ -251,7 +251,7 @@ public final class ExploreProcess extends BaritoneProcessHelper implements IExpl
             int countRemain = 0;
             BaritoneChunkCache bcc = new BaritoneChunkCache();
             for (MyChunkPos pos : positions) {
-                if (bcc.isAlreadyExplored(pos.x, pos.z) != Status.EXPLORED) {
+                if (bcc.isAlreadyExplored(pos.x(), pos.z()) != Status.EXPLORED) {
                     // either waiting for it or dont have it at all
                     countRemain++;
                     if (countRemain >= Baritone.settings().exploreChunkSetMinimumSize.value) {

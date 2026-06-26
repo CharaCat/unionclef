@@ -5,9 +5,9 @@ import baritone.api.event.events.RenderEvent;
 import baritone.api.event.listener.AbstractGameEventListener;
 import baritone.api.selection.ISelection;
 import baritone.utils.IRenderer;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Box;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.phys.AABB;
 
 public class SelectionRenderer implements IRenderer, AbstractGameEventListener {
 
@@ -20,7 +20,7 @@ public class SelectionRenderer implements IRenderer, AbstractGameEventListener {
         baritone.getGameEventHandler().registerEventListener(this);
     }
 
-    public static void renderSelections(MatrixStack stack, ISelection[] selections) {
+    public static void renderSelections(PoseStack stack, ISelection[] selections) {
         float opacity = settings.selectionOpacity.value;
         boolean ignoreDepth = settings.renderSelectionIgnoreDepth.value;
         float lineWidth = settings.selectionLineWidth.value;
@@ -39,13 +39,13 @@ public class SelectionRenderer implements IRenderer, AbstractGameEventListener {
             IRenderer.glColor(settings.colorSelectionPos1.value, opacity);
 
             for (ISelection selection : selections) {
-                IRenderer.emitAABB(bufferBuilder, stack, new Box(selection.pos1()), lineWidth);
+                IRenderer.emitAABB(bufferBuilder, stack, new AABB(selection.pos1()), lineWidth);
             }
 
             IRenderer.glColor(settings.colorSelectionPos2.value, opacity);
 
             for (ISelection selection : selections) {
-                IRenderer.emitAABB(bufferBuilder, stack, new Box(selection.pos2()), lineWidth);
+                IRenderer.emitAABB(bufferBuilder, stack, new AABB(selection.pos2()), lineWidth);
             }
         }
 

@@ -17,18 +17,26 @@
 
 package baritone.launch.mixins;
 
-import baritone.utils.accessor.IPalettedContainer.IData;
-import net.minecraft.util.collection.PaletteStorage;
-import net.minecraft.world.chunk.Palette;
+import baritone.utils.accessor.IEntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(targets = "net/minecraft/world/chunk/PalettedContainer$Data")
-public abstract class MixinPalettedContainer$Data<T> implements IData<T> {
+@Mixin(EntityRenderDispatcher.class)
+public class MixinEntityRenderDispatcher implements IEntityRenderDispatcher {
 
-    @Accessor
-    public abstract Palette<T> getPalette();
 
-    @Accessor
-    public abstract PaletteStorage getStorage();
+    @Override
+    public double renderPosX() {
+        return ((EntityRenderDispatcher) (Object) this).camera.position().x;
+    }
+
+    @Override
+    public double renderPosY() {
+        return ((EntityRenderDispatcher) (Object) this).camera.position().y;
+    }
+
+    @Override
+    public double renderPosZ() {
+        return ((EntityRenderDispatcher) (Object) this).camera.position().z;
+    }
 }

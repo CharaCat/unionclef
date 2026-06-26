@@ -18,21 +18,21 @@
 package baritone.launch.mixins;
 
 import baritone.utils.accessor.IRenderType;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-@Mixin(RenderLayer.class)
+@Mixin(RenderType.class)
 public abstract class MixinRenderType implements IRenderType {
 
     @Shadow
-    static RenderLayer of(final String string, final RenderSetup renderSetup) {
+    static RenderType of(final String string, final RenderSetup renderSetup) {
         return null;
     }
 
     @Override
-    public RenderLayer createRenderType(final String name, final RenderSetup renderSetup) {
+    public RenderType createRenderType(final String name, final RenderSetup renderSetup) {
         return of(name, renderSetup);
     }
 }

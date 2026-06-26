@@ -46,7 +46,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 /**
  * @author Brady
@@ -60,7 +60,7 @@ public class Baritone implements IBaritone {
         threadPool = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
     }
 
-    private final MinecraftClient mc;
+    private final Minecraft mc;
     private final Path directory;
 
     private final GameEventHandler gameEventHandler;
@@ -89,11 +89,11 @@ public class Baritone implements IBaritone {
 
     public BlockStateInterface bsi;
 
-    Baritone(MinecraftClient mc) {
+    Baritone(Minecraft mc) {
         this.mc = mc;
         this.gameEventHandler = new GameEventHandler(this);
 
-        this.directory = mc.runDirectory.toPath().resolve("baritone");
+        this.directory = mc.gameDirectory.toPath().resolve("baritone");
         if (!Files.exists(this.directory)) {
             try {
                 Files.createDirectories(this.directory);
@@ -244,7 +244,7 @@ public class Baritone implements IBaritone {
         new Thread(() -> {
             try {
                 Thread.sleep(100);
-                mc.execute(() -> mc.setScreen(new GuiClick()));
+                mc.execute(() -> mc.setScreenAndShow(new GuiClick()));
             } catch (Exception ignored) {}
         }).start();
     }

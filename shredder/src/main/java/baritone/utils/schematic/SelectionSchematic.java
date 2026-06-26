@@ -21,9 +21,9 @@ import baritone.api.schematic.ISchematic;
 import baritone.api.schematic.MaskSchematic;
 import baritone.api.selection.ISelection;
 import java.util.stream.Stream;
-import net.minecraft.block.BlockState;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 
 public class SelectionSchematic extends MaskSchematic {
 
@@ -43,7 +43,7 @@ public class SelectionSchematic extends MaskSchematic {
     protected boolean partOfMask(int x, int y, int z, BlockState currentState) {
         for (ISelection selection : selections) {
             if (x >= selection.min().x && y >= selection.min().y && z >= selection.min().z
-                    && x <= selection.max().x && y <= selection.max().y && z <= selection.max().z) {
+                    && x <= selection.max().x && y <= selection.max().y && z <= selection.max().z()) {
                 return true;
             }
         }

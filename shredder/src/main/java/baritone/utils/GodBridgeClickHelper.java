@@ -18,10 +18,10 @@
 package baritone.utils;
 
 import baritone.api.utils.IPlayerContext;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -74,7 +74,7 @@ public class GodBridgeClickHelper {
         IPlayerContext localCtx = ctx;
         if (localCtx == null) return;
         try {
-            if (localCtx.player() == null || localCtx.world() == null || localCtx.player().isRiding()) return;
+            if (localCtx.player() == null || localCtx.world() == null || localCtx.player().isPassenger()) return;
             if (localCtx.playerController() == null) return;
         } catch (Exception e) {
             return;
@@ -101,13 +101,13 @@ public class GodBridgeClickHelper {
         // Right-click through same path as BlockPlaceHelper
         BlockHitResult blockHit = (BlockHitResult) mouseOver;
         try {
-            for (Hand hand : Hand.values()) {
-                if (localCtx.playerController().processRightClickBlock(localCtx.player(), localCtx.world(), hand, blockHit) == ActionResult.SUCCESS) {
-                    localCtx.player().swingHand(hand);
+            for (InteractionHand hand : InteractionHand.values()) {
+                if (localCtx.playerController().processRightClickBlock(localCtx.player(), localCtx.world(), hand, blockHit) == InteractionResult.SUCCESS) {
+                    localCtx.player().swing(hand);
                     break;
                 }
-                if (!localCtx.player().getStackInHand(hand).isEmpty()
-                        && localCtx.playerController().processRightClick(localCtx.player(), localCtx.world(), hand) == ActionResult.SUCCESS) {
+                if (!localCtx.player().getItemInHand(hand).isEmpty()
+                        && localCtx.playerController().processRightClick(localCtx.player(), localCtx.world(), hand) == InteractionResult.SUCCESS) {
                     break;
                 }
             }

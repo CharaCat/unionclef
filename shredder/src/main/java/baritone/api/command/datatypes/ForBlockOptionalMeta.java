@@ -24,10 +24,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.minecraft.block.Block;
-import net.minecraft.registry.Registries;
-import net.minecraft.state.property.Property;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.resources.Identifier;
 
 public enum ForBlockOptionalMeta implements IDatatypeFor<BlockOptionalMeta> {
     INSTANCE;
@@ -76,7 +76,7 @@ public enum ForBlockOptionalMeta implements IDatatypeFor<BlockOptionalMeta> {
             properties = parts[1];
         }
 
-        Block block = Registries.BLOCK.getOptionalValue(Identifier.of(blockId)).orElse(null);
+        Block block = BuiltInRegistries.BLOCK.getOptional(Identifier.parse(blockId)).orElse(null);
         if (block == null) {
             // This block doesn't exist so there's no properties to complete.
             return Stream.empty();
@@ -98,7 +98,7 @@ public enum ForBlockOptionalMeta implements IDatatypeFor<BlockOptionalMeta> {
             String prefix = arg.substring(0, arg.length() - lastProperty.length());
             return new TabCompleteHelper()
                     .append(
-                            block.getStateManager()
+                            block.getStateDefinition()
                                     .getProperties()
                                     .stream()
                                     .map(Property::getName)
@@ -120,7 +120,7 @@ public enum ForBlockOptionalMeta implements IDatatypeFor<BlockOptionalMeta> {
         // We are completing the value of a property
         String prefix = arg.substring(0, arg.length() - lastValue.length());
 
-        Property<?> property = block.getStateManager().getProperty(lastName);
+        Property<?> property = block.getStateDefinition().getProperty(lastName);
         if (property == null) {
             // The property does not exist so there's no values to complete
             return Stream.empty();
@@ -148,6 +148,6 @@ public enum ForBlockOptionalMeta implements IDatatypeFor<BlockOptionalMeta> {
 
     // this shouldn't need to be a separate method?
     private static <T extends Comparable<T>> Stream<String> getValues(Property<T> property) {
-        return property.getValues().stream().map(property::name);
+        return property.getPossibleValues().stream().map(property::getName);
     }
 }

@@ -42,7 +42,7 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 
 public final class PathingBehavior extends Behavior implements IPathingBehavior, Helper {
 
@@ -184,7 +184,7 @@ public final class PathingBehavior extends Behavior implements IPathingBehavior,
                     consecutivePathFailures = 0;
                     next = null;
                     if (Baritone.settings().disconnectOnArrival.value) {
-                        ctx.minecraft().disconnect(net.minecraft.text.Text.empty());
+                        ctx.minecraft().disconnectFromWorld(net.minecraft.network.chat.Component.empty());
                     }
                     return;
                 }
@@ -278,11 +278,11 @@ public final class PathingBehavior extends Behavior implements IPathingBehavior,
         if (current != null) {
             switch (event.getState()) {
                 case PRE:
-                    lastAutoJump = ctx.minecraft().options.getAutoJump().getValue();
-                    ctx.minecraft().options.getAutoJump().setValue(false);
+                    lastAutoJump = ctx.minecraft().options.autoJump().get();
+                    ctx.minecraft().options.autoJump().set(false);
                     break;
                 case POST:
-                    ctx.minecraft().options.getAutoJump().setValue(lastAutoJump);
+                    ctx.minecraft().options.autoJump().set(lastAutoJump);
                     break;
                 default:
                     break;
@@ -432,8 +432,8 @@ public final class PathingBehavior extends Behavior implements IPathingBehavior,
         if (ticksElapsedSoFar == 0) {
             return Optional.empty();
         }
-        double current = goal.heuristic(currentPos.x, currentPos.y, currentPos.z);
-        double start = goal.heuristic(startPosition.x, startPosition.y, startPosition.z);
+        double current = goal.heuristic(currentPos.x(), currentPos.y, currentPos.z());
+        double start = goal.heuristic(startPosition.x(), startPosition.y, startPosition.z());
         if (current == start) {// can't check above because current and start can be equal even if currentPos and startPosition are not
             return Optional.empty();
         }
@@ -461,10 +461,10 @@ public final class PathingBehavior extends Behavior implements IPathingBehavior,
      */
     public BetterBlockPos pathStart() { // TODO move to a helper or util class
         BetterBlockPos feet = ctx.playerFeet();
-        if (!MovementHelper.canWalkOn(ctx, feet.down())) {
-            if (ctx.player().isOnGround()) {
-                double playerX = ctx.player().getEntityPos().x;
-                double playerZ = ctx.player().getEntityPos().z;
+        if (!MovementHelper.canWalkOn(ctx, feet.below())) {
+            if (ctx.player().onGround()) {
+                double playerX = ctx.player().position().x;
+                double playerZ = ctx.player().position().z;
                 ArrayList<BetterBlockPos> closest = new ArrayList<>();
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
@@ -480,7 +480,7 @@ public final class PathingBehavior extends Behavior implements IPathingBehavior,
                         // can't possibly be sneaking off of this one, we're too far away
                         continue;
                     }
-                    if (MovementHelper.canWalkOn(ctx, possibleSupport.down()) && MovementHelper.canWalkThrough(ctx, possibleSupport) && MovementHelper.canWalkThrough(ctx, possibleSupport.up())) {
+                    if (MovementHelper.canWalkOn(ctx, possibleSupport.below()) && MovementHelper.canWalkThrough(ctx, possibleSupport) && MovementHelper.canWalkThrough(ctx, possibleSupport.above())) {
                         // this is plausible
                         //logDebug("Faking path start assuming player is standing off the edge of a block");
                         return possibleSupport;
@@ -490,9 +490,9 @@ public final class PathingBehavior extends Behavior implements IPathingBehavior,
             } else {
                 // !onGround
                 // we're in the middle of a jump
-                if (MovementHelper.canWalkOn(ctx, feet.down().down())) {
+                if (MovementHelper.canWalkOn(ctx, feet.below().below())) {
                     //logDebug("Faking path start assuming player is midair and falling");
-                    return feet.down();
+                    return feet.below();
                 }
             }
         }

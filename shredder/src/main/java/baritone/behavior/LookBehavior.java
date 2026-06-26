@@ -28,8 +28,8 @@ import baritone.api.utils.Rotation;
 import baritone.behavior.look.ForkableRandom;
 import java.util.Optional;
 import java.util.Random;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.util.Mth;
 
 public final class LookBehavior extends Behavior implements ILookBehavior {
 
@@ -109,18 +109,18 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
                     return;
                 }
 
-                this.prevRotation = new Rotation(ctx.player().getYaw(), ctx.player().getPitch());
+                this.prevRotation = new Rotation(ctx.player().getYRot(), ctx.player().getXRot());
                 final Rotation actual = this.processor.peekRotation(this.target.rotation);
-                ctx.player().setYaw(actual.getYaw());
-                ctx.player().setPitch(actual.getPitch());
+                ctx.player().setYRot(actual.getYRot());
+                ctx.player().setXRot(actual.getXRot());
 
                 // Update render-frame smooth target
                 this.hadTargetThisTick = true;
-                float newTargetYaw   = this.target.rotation.getYaw();
-                float newTargetPitch = this.target.rotation.getPitch();
+                float newTargetYaw   = this.target.rotation.getYRot();
+                float newTargetPitch = this.target.rotation.getXRot();
                 // If the target jumped significantly while already tracking, re-arm the flick
                 if (this.smoothActive && this.wmFlickInjected) {
-                    double dy = MathHelper.wrapDegrees(newTargetYaw - this.renderTargetYaw);
+                    double dy = Mth.wrapDegrees(newTargetYaw - this.renderTargetYaw);
                     double dp = newTargetPitch - this.renderTargetPitch;
                     if (Math.sqrt(dy * dy + dp * dp) > 30.0) {
                         this.wmFlickInjected = false;
@@ -142,8 +142,8 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
                     // Block interaction needs objectMouseOver to see the correct face immediately.
                     // getYaw() mixin returns smoothYaw, which lags behind actual — snap it so
                     // the raycast hits the right face on this tick, not several ticks later.
-                    this.smoothYaw = actual.getYaw();
-                    this.smoothPitch = actual.getPitch();
+                    this.smoothYaw = actual.getYRot();
+                    this.smoothPitch = actual.getXRot();
                     this.wmVeloYaw = 0; this.wmVeloPitch = 0;
                     this.wmWindYaw = 0; this.wmWindPitch = 0;
                     this.wmFlickInjected = false;
@@ -155,8 +155,8 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
                     if (this.target.mode == Target.Mode.SERVER) {
                         // freeLook: restore original yaw so player's visual doesn't snap.
                         // Render-frame mixin handles smooth display via getSmoothedYaw.
-                        ctx.player().setYaw(this.prevRotation.getYaw());
-                        ctx.player().setPitch(this.prevRotation.getPitch());
+                        ctx.player().setYRot(this.prevRotation.getYRot());
+                        ctx.player().setXRot(this.prevRotation.getXRot());
                     }
                     // CLIENT mode: PRE already set yaw to peekRotation for packets.
                     // Render-frame mixin overrides getYaw(tickDelta) with smooth value.
@@ -172,13 +172,13 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
 
     @Override
     public void onSendPacket(PacketEvent event) {
-        if (!(event.getPacket() instanceof PlayerMoveC2SPacket)) {
+        if (!(event.getPacket() instanceof ServerboundMovePlayerPacket)) {
             return;
         }
 
-        final PlayerMoveC2SPacket packet = (PlayerMoveC2SPacket) event.getPacket();
-        if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround || packet instanceof PlayerMoveC2SPacket.Full) {
-            this.serverRotation = new Rotation(packet.getYaw(0.0f), packet.getPitch(0.0f));
+        final ServerboundMovePlayerPacket packet = (ServerboundMovePlayerPacket) event.getPacket();
+        if (packet instanceof ServerboundMovePlayerPacket.Rot || packet instanceof ServerboundMovePlayerPacket.PosRot) {
+            this.serverRotation = new Rotation(packet.getYRot(0.0f), packet.getXRot(0.0f));
         }
     }
 
@@ -237,7 +237,7 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
     }
 
     private void updateWindMouse(float dt) {
-        double dYaw = MathHelper.wrapDegrees(renderTargetYaw - smoothYaw);
+        double dYaw = Mth.wrapDegrees(renderTargetYaw - smoothYaw);
         double dPitch = (double) renderTargetPitch - smoothPitch;
         double dist = Math.sqrt(dYaw * dYaw + dPitch * dPitch);
 
@@ -314,7 +314,7 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
         tickSpeed = Math.min(tickSpeed, 1.0f);
         float frameSpeed = 1.0f - (float) Math.pow(1.0f - tickSpeed, dtSeconds * 20.0f);
 
-        float deltaYaw = MathHelper.wrapDegrees(renderTargetYaw - smoothYaw);
+        float deltaYaw = Mth.wrapDegrees(renderTargetYaw - smoothYaw);
         smoothYaw += deltaYaw * frameSpeed;
         float deltaPitch = renderTargetPitch - smoothPitch;
         smoothPitch += deltaPitch * frameSpeed;
@@ -323,7 +323,7 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
     public void pig() {
         if (this.target != null) {
             final Rotation actual = this.processor.peekRotation(this.target.rotation);
-            ctx.player().setYaw(actual.getYaw());
+            ctx.player().setYRot(actual.getYRot());
         }
     }
 
@@ -339,8 +339,8 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
     public void onPlayerRotationMove(RotationMoveEvent event) {
         if (this.target != null) {
             final Rotation actual = this.processor.peekRotation(this.target.rotation);
-            event.setYaw(actual.getYaw());
-            event.setPitch(actual.getPitch());
+            event.setYRot(actual.getYRot());
+            event.setXRot(actual.getXRot());
         }
     }
 
@@ -380,12 +380,12 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
         public final Rotation peekRotation(final Rotation rotation) {
             final Rotation prev = this.getPrevRotation();
 
-            float desiredYaw = rotation.getYaw();
-            float desiredPitch = rotation.getPitch();
+            float desiredYaw = rotation.getYRot();
+            float desiredPitch = rotation.getXRot();
 
-            // In other words, the target doesn't care about the pitch, so it used playerRotations().getPitch()
+            // In other words, the target doesn't care about the pitch, so it used playerRotations().getXRot()
             // and it's safe to adjust it to a normal level
-            if (desiredPitch == prev.getPitch()) {
+            if (desiredPitch == prev.getXRot()) {
                 desiredPitch = nudgeToLevel(desiredPitch);
             }
 
@@ -393,8 +393,8 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
             desiredPitch += this.randomPitchOffset;
 
             return new Rotation(
-                    this.calculateMouseMove(prev.getYaw(), desiredYaw),
-                    this.calculateMouseMove(prev.getPitch(), desiredPitch)
+                    this.calculateMouseMove(prev.getYRot(), desiredYaw),
+                    this.calculateMouseMove(prev.getXRot(), desiredPitch)
             ).clamp();
         }
 
@@ -471,7 +471,7 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
 
         private float mouseToAngle(double mouseDelta) {
             // casting float literals to double gets us the precise values used by mc
-            final double f = ctx.minecraft().options.getMouseSensitivity().getValue() * (double) 0.6f + (double) 0.2f;
+            final double f = ctx.minecraft().options.sensitivity().get() * (double) 0.6f + (double) 0.2f;
             return (float) (mouseDelta * f * f * f * 8.0d) * 0.15f; // yes, one double and one float scaling factor
         }
     }
@@ -509,7 +509,7 @@ public final class LookBehavior extends Behavior implements ILookBehavior {
                 final boolean antiCheat = settings.antiCheatCompatibility.value;
                 final boolean blockFreeLook = settings.blockFreeLook.value;
 
-                if (ctx.player().isGliding()) {
+                if (ctx.player().isFallFlying()) {
                     // always need to set angles while flying
                     return settings.elytraFreeLook.value ? SERVER : CLIENT;
                 } else if (settings.freeLook.value) {

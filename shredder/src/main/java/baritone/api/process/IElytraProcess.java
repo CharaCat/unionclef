@@ -18,7 +18,7 @@
 package baritone.api.process;
 
 import baritone.api.pathing.goals.Goal;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 
 public interface IElytraProcess extends IBaritoneProcess {
 

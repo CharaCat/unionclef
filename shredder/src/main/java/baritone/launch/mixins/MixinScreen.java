@@ -21,9 +21,9 @@ import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
 import baritone.api.event.events.ChatEvent;
 import baritone.utils.accessor.IGuiScreen;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.ClickEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.ClickEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -36,7 +36,7 @@ public abstract class MixinScreen implements IGuiScreen {
 
     //TODO: switch to enum extention with mixin 9.0 or whenever Mumfrey gets around to it
     @Inject(method = "handleClickEvent", at = @At(value = "HEAD"), cancellable = true)
-    private static void handleCustomClickEvent(final ClickEvent clickEvent, final MinecraftClient minecraft, final Screen screen, final CallbackInfo ci) {
+    private static void handleCustomClickEvent(final ClickEvent clickEvent, final Minecraft minecraft, final Screen screen, final CallbackInfo ci) {
         if (clickEvent == null) {
             return;
         }

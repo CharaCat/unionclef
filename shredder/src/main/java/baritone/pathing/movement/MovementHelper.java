@@ -29,57 +29,57 @@ import baritone.pathing.movement.MovementState.MovementTarget;
 import baritone.pathing.precompute.Ternary;
 import baritone.utils.BlockStateInterface;
 import baritone.utils.ToolSet;
-import net.minecraft.block.AbstractFireBlock;
-import net.minecraft.block.AbstractSkullBlock;
-import net.minecraft.block.AirBlock;
-import net.minecraft.block.AmethystClusterBlock;
-import net.minecraft.block.AzaleaBlock;
-import net.minecraft.block.BambooBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.CarpetBlock;
-import net.minecraft.block.CauldronBlock;
-import net.minecraft.block.DoorBlock;
-import net.minecraft.block.EndPortalBlock;
-import net.minecraft.block.EndPortalFrameBlock;
-import net.minecraft.block.FallingBlock;
-import net.minecraft.block.FenceGateBlock;
-import net.minecraft.block.FluidBlock;
-import net.minecraft.block.FrostedIceBlock;
-import net.minecraft.block.HorizontalFacingBlock;
-import net.minecraft.block.LeavesBlock;
-import net.minecraft.block.LilyPadBlock;
-import net.minecraft.block.PistonExtensionBlock;
-import net.minecraft.block.PointedDripstoneBlock;
-import net.minecraft.block.ScaffoldingBlock;
-import net.minecraft.block.ShulkerBoxBlock;
-import net.minecraft.block.SkullBlock;
-import net.minecraft.block.SlabBlock;
-import net.minecraft.block.SnowBlock;
-import net.minecraft.block.StainedGlassBlock;
-import net.minecraft.block.StairsBlock;
-import net.minecraft.block.TrapdoorBlock;
-import net.minecraft.block.enums.BlockHalf;
-import net.minecraft.block.enums.SlabType;
-import net.minecraft.block.enums.StairShape;
-import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.ai.pathing.NavigationType;
-import net.minecraft.fluid.FlowableFluid;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.fluid.Fluids;
-import net.minecraft.fluid.WaterFluid;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.BaseFireBlock;
+import net.minecraft.world.level.block.AbstractSkullBlock;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.AmethystClusterBlock;
+import net.minecraft.world.level.block.AzaleaBlock;
+import net.minecraft.world.level.block.BambooStalkBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CarpetBlock;
+import net.minecraft.world.level.block.CauldronBlock;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.EndPortalBlock;
+import net.minecraft.world.level.block.EndPortalFrameBlock;
+import net.minecraft.world.level.block.FallingBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.FrostedIceBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.LilyPadBlock;
+import net.minecraft.world.level.block.piston.MovingPistonBlock;
+import net.minecraft.world.level.block.PointedDripstoneBlock;
+import net.minecraft.world.level.block.ScaffoldingBlock;
+import net.minecraft.world.level.block.ShulkerBoxBlock;
+import net.minecraft.world.level.block.SkullBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
+import net.minecraft.world.level.block.StainedGlassBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
+import net.minecraft.world.level.block.state.properties.Half;
+import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.level.block.state.properties.StairsShape;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.level.material.FlowingFluid;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.material.WaterFluid;
+import net.minecraft.core.Holder;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Optional;
 
@@ -124,27 +124,27 @@ public interface MovementHelper extends ActionCosts, Helper {
                 // therefore if directlyAbove is true, we will actually ignore if this is falling
                 && block instanceof FallingBlock // obviously, this check is only valid for falling blocks
                 && Baritone.settings().avoidUpdatingFallingBlocks.value // and if the setting is enabled
-                && FallingBlock.canFallThrough(bsi.get0(x, y - 1, z))) { // and if it would fall (i.e. it's unsupported)
+                && FallingBlock.isFree(bsi.get0(x, y - 1, z))) { // and if it would fall (i.e. it's unsupported)
             return true; // dont break a block that is adjacent to unsupported gravel because it can cause really weird stuff
         }
         // only pure liquids for now
         // waterlogged blocks can have closed bottom sides and such
-        if (block instanceof FluidBlock) {
+        if (block instanceof LiquidBlock) {
             if (directlyAbove || Baritone.settings().strictLiquidCheck.value) {
                 return true;
             }
-            int level = state.get(FluidBlock.LEVEL);
+            int level = state.getValue(LiquidBlock.LEVEL);
             if (level == 0) {
                 return true; // source blocks like to flow horizontally
             }
             // everything else will prefer flowing down
-            return !(bsi.get0(x, y - 1, z).getBlock() instanceof FluidBlock); // assume everything is in a static state
+            return !(bsi.get0(x, y - 1, z).getBlock() instanceof LiquidBlock); // assume everything is in a static state
         }
         return !state.getFluidState().isEmpty();
     }
 
     static boolean canWalkThrough(IPlayerContext ctx, BetterBlockPos pos) {
-        return canWalkThrough(new BlockStateInterface(ctx), pos.x, pos.y, pos.z);
+        return canWalkThrough(new BlockStateInterface(ctx), pos.x(), pos.y, pos.z());
     }
 
     static boolean canWalkThrough(BlockStateInterface bsi, int x, int y, int z) {
@@ -184,7 +184,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (block instanceof AirBlock) {
             return YES;
         }
-        if (block instanceof AbstractFireBlock || block == Blocks.TRIPWIRE || block == Blocks.COBWEB || block == Blocks.END_PORTAL || block == Blocks.COCOA || block instanceof AbstractSkullBlock || block == Blocks.BUBBLE_COLUMN || block instanceof ShulkerBoxBlock || block instanceof SlabBlock || block instanceof TrapdoorBlock || block == Blocks.HONEY_BLOCK || block == Blocks.END_ROD || block == Blocks.SWEET_BERRY_BUSH || block == Blocks.POINTED_DRIPSTONE || block instanceof AmethystClusterBlock || block instanceof AzaleaBlock) {
+        if (block instanceof BaseFireBlock || block == Blocks.TRIPWIRE || block == Blocks.COBWEB || block == Blocks.END_PORTAL || block == Blocks.COCOA || block instanceof AbstractSkullBlock || block == Blocks.BUBBLE_COLUMN || block instanceof ShulkerBoxBlock || block instanceof SlabBlock || block instanceof TrapDoorBlock || block == Blocks.HONEY_BLOCK || block == Blocks.END_ROD || block == Blocks.SWEET_BERRY_BUSH || block == Blocks.POINTED_DRIPSTONE || block instanceof AmethystClusterBlock || block instanceof AzaleaBlock) {
             return NO;
         }
         if (block == Blocks.BIG_DRIPLEAF) {
@@ -206,14 +206,14 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (block instanceof CarpetBlock) {
             return MAYBE;
         }
-        if (block instanceof SnowBlock) {
+        if (block instanceof SnowLayerBlock) {
             // snow layers cached as the top layer of a packed chunk have no metadata, we can't make a decision based on their depth here
             // it would otherwise make long distance pathing through snowy biomes impossible
             return MAYBE;
         }
         FluidState fluidState = state.getFluidState();
         if (!fluidState.isEmpty()) {
-            if (fluidState.getFluid().getLevel(fluidState) != 8) {
+            if (fluidState.getAmount() != 8) {
                 return NO;
             } else {
                 return MAYBE;
@@ -222,7 +222,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (block instanceof CauldronBlock) {
             return NO;
         }
-        if (state.canPathfindThrough(NavigationType.LAND)) {
+        if (state.isPathfindable(PathComputationType.LAND)) {
             return YES;
         } else {
             return NO;
@@ -236,7 +236,7 @@ public interface MovementHelper extends ActionCosts, Helper {
             return canWalkOn(bsi, x, y - 1, z);
         }
 
-        if (block instanceof SnowBlock) {
+        if (block instanceof SnowLayerBlock) {
             // if they're cached as a top block, we don't know their metadata
             // default to true (mostly because it would otherwise make long distance pathing through snowy biomes impossible)
             if (!bsi.worldContainsLoadedChunk(x, z)) {
@@ -244,7 +244,7 @@ public interface MovementHelper extends ActionCosts, Helper {
             }
             // the check in BlockSnow.isPassable is layers < 5
             // while actually, we want < 3 because 3 or greater makes it impassable in a 2 high ceiling
-            if (state.get(SnowBlock.LAYERS) >= 3) {
+            if (state.getValue(SnowLayerBlock.LAYERS) >= 3) {
                 return false;
             }
             // ok, it's low enough we could walk through it, but is it supported?
@@ -265,10 +265,10 @@ public interface MovementHelper extends ActionCosts, Helper {
             if (!up.getFluidState().isEmpty() || up.getBlock() instanceof LilyPadBlock) {
                 return false;
             }
-            return fluidState.getFluid() instanceof WaterFluid;
+            return fluidState.getType() instanceof WaterFluid;
         }
 
-        return state.canPathfindThrough(NavigationType.LAND);
+        return state.isPathfindable(PathComputationType.LAND);
     }
 
     static Ternary fullyPassableBlockState(BlockState state) {
@@ -277,7 +277,7 @@ public interface MovementHelper extends ActionCosts, Helper {
             return YES;
         }
         // exceptions - blocks that are isPassable true, but we can't actually jump through
-        if (block instanceof AbstractFireBlock
+        if (block instanceof BaseFireBlock
                 || block == Blocks.TRIPWIRE
                 || block == Blocks.COBWEB
                 || block == Blocks.VINE
@@ -286,9 +286,9 @@ public interface MovementHelper extends ActionCosts, Helper {
                 || block instanceof AzaleaBlock
                 || block instanceof DoorBlock
                 || block instanceof FenceGateBlock
-                || block instanceof SnowBlock
+                || block instanceof SnowLayerBlock
                 || !state.getFluidState().isEmpty()
-                || block instanceof TrapdoorBlock
+                || block instanceof TrapDoorBlock
                 || block instanceof EndPortalBlock
                 || block instanceof SkullBlock
                 || block instanceof ShulkerBoxBlock) {
@@ -296,7 +296,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         }
         // door, fence gate, liquid, trapdoor have been accounted for, nothing else uses the world or pos parameters
         // at least in 1.12.2 vanilla, that is.....
-        if (state.canPathfindThrough(NavigationType.LAND)) {
+        if (state.isPathfindable(PathComputationType.LAND)) {
             return YES;
         } else {
             return NO;
@@ -327,14 +327,14 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (fullyPassable == NO) {
             return false;
         }
-        return state.canPathfindThrough(NavigationType.LAND);
+        return state.isPathfindable(PathComputationType.LAND);
     }
 
     /**
      * params retained for backwards compatibility
      */
     static boolean fullyPassablePosition(BlockStateInterface bsi, int x, int y, int z, BlockState state) {
-        return state.canPathfindThrough(NavigationType.LAND);
+        return state.isPathfindable(PathComputationType.LAND);
     }
 
     static boolean isReplaceable(int x, int y, int z, BlockState state, BlockStateInterface bsi) {
@@ -353,17 +353,17 @@ public interface MovementHelper extends ActionCosts, Helper {
             // early return for common cases hehe
             return true;
         }
-        if (block instanceof SnowBlock) {
+        if (block instanceof SnowLayerBlock) {
             // as before, default to true (mostly because it would otherwise make long distance pathing through snowy biomes impossible)
             if (!bsi.worldContainsLoadedChunk(x, z)) {
                 return true;
             }
-            return state.get(SnowBlock.LAYERS) == 1;
+            return state.getValue(SnowLayerBlock.LAYERS) == 1;
         }
         if (block == Blocks.LARGE_FERN || block == Blocks.TALL_GRASS) {
             return true;
         }
-        return state.isReplaceable();
+        return state.canBeReplaced();
     }
 
     @Deprecated
@@ -394,7 +394,7 @@ public interface MovementHelper extends ActionCosts, Helper {
             return true;
         }
 
-        return state.get(FenceGateBlock.OPEN);
+        return state.getValue(FenceGateBlock.OPEN);
     }
 
     static boolean isHorizontalBlockPassable(BlockPos blockPos, BlockState blockState, BlockPos playerPos, BooleanProperty propertyOpen) {
@@ -402,8 +402,8 @@ public interface MovementHelper extends ActionCosts, Helper {
             return false;
         }
 
-        Direction.Axis facing = blockState.get(HorizontalFacingBlock.FACING).getAxis();
-        boolean open = blockState.get(propertyOpen);
+        Direction.Axis facing = blockState.getValue(HorizontalDirectionalBlock.FACING).getAxis();
+        boolean open = blockState.getValue(propertyOpen);
 
         Direction.Axis playerFacing;
         if (playerPos.north().equals(blockPos) || playerPos.south().equals(blockPos)) {
@@ -423,7 +423,7 @@ public interface MovementHelper extends ActionCosts, Helper {
                 || block == Blocks.MAGMA_BLOCK
                 || block == Blocks.CACTUS
                 || block == Blocks.SWEET_BERRY_BUSH
-                || block instanceof AbstractFireBlock
+                || block instanceof BaseFireBlock
                 || block instanceof EndPortalFrameBlock
                 || block == Blocks.END_PORTAL
                 || block == Blocks.COBWEB
@@ -483,7 +483,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (block == Blocks.GLASS || block instanceof StainedGlassBlock) {
             return YES;
         }
-        if (block instanceof StairsBlock) {
+        if (block instanceof StairBlock) {
             return YES;
         }
         if (isWater(state)) {
@@ -494,7 +494,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         }
         if (block instanceof SlabBlock) {
             if (!Baritone.settings().allowWalkOnBottomSlab.value) {
-                if (state.get(SlabBlock.TYPE) != SlabType.BOTTOM) {
+                if (state.getValue(SlabBlock.TYPE) != SlabType.BOTTOM) {
                     return YES;
                 }
                 return NO;
@@ -507,14 +507,14 @@ public interface MovementHelper extends ActionCosts, Helper {
     static boolean canWalkOnPosition(BlockStateInterface bsi, int x, int y, int z, BlockState state) {
         Block block = state.getBlock();
         if (isWater(state)) {
-            // since this is called literally millions of times per second, the benefit of not allocating millions of useless "pos.up()"
+            // since this is called literally millions of times per second, the benefit of not allocating millions of useless "pos.above()"
             // BlockPos s that we'd just garbage collect immediately is actually noticeable. I don't even think its a decrease in readability
             BlockState upState = bsi.get0(x, y + 1, z);
             Block up = upState.getBlock();
             if (up == Blocks.LILY_PAD || up instanceof CarpetBlock) {
                 return true;
             }
-            if (MovementHelper.isFlowing(x, y, z, state, bsi) || upState.getFluidState().getFluid() == Fluids.FLOWING_WATER) {
+            if (MovementHelper.isFlowing(x, y, z, state, bsi) || upState.getFluidState().getType() == Fluids.FLOWING_WATER) {
                 // the only scenario in which we can walk on flowing water is if it's under still water with jesus off
                 return isWater(upState) && !Baritone.settings().assumeWalkOnWater.value;
             }
@@ -539,7 +539,7 @@ public interface MovementHelper extends ActionCosts, Helper {
     }
 
     static boolean canWalkOn(IPlayerContext ctx, BetterBlockPos pos, BlockState state) {
-        return canWalkOn(new BlockStateInterface(ctx), pos.x, pos.y, pos.z, state);
+        return canWalkOn(new BlockStateInterface(ctx), pos.x(), pos.y, pos.z(), state);
     }
 
     static boolean canWalkOn(IPlayerContext ctx, BlockPos pos) {
@@ -547,7 +547,7 @@ public interface MovementHelper extends ActionCosts, Helper {
     }
 
     static boolean canWalkOn(IPlayerContext ctx, BetterBlockPos pos) {
-        return canWalkOn(new BlockStateInterface(ctx), pos.x, pos.y, pos.z);
+        return canWalkOn(new BlockStateInterface(ctx), pos.x(), pos.y, pos.z());
     }
 
     static boolean canWalkOn(BlockStateInterface bsi, int x, int y, int z) {
@@ -556,19 +556,19 @@ public interface MovementHelper extends ActionCosts, Helper {
 
     static boolean canUseFrostWalker(CalculationContext context, BlockState state) {
         return context.frostWalker != 0
-                && state == FrostedIceBlock.getMeltedState()
-                && state.get(FluidBlock.LEVEL) == 0;
+                && state.getBlock() == Blocks.WATER
+                && state.getValue(LiquidBlock.LEVEL) == 0;
     }
 
     static boolean canUseFrostWalker(IPlayerContext ctx, BlockPos pos) {
         boolean hasFrostWalker = false;
         OUTER: for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemEnchantmentsComponent itemEnchantments = ctx
+            ItemEnchantments itemEnchantments = ctx
                 .player()
-                .getEquippedStack(slot)
+                .getItemBySlot(slot)
                 .getEnchantments();
-            for (RegistryEntry<Enchantment> enchant : itemEnchantments.getEnchantments()) {
-                if (enchant.matchesKey(Enchantments.FROST_WALKER)) {
+            for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
+                if (enchant.is(Enchantments.FROST_WALKER)) {
                     hasFrostWalker = true;
                     break OUTER;
                 }
@@ -576,8 +576,8 @@ public interface MovementHelper extends ActionCosts, Helper {
         }
         BlockState state = BlockStateInterface.get(ctx, pos);
         return hasFrostWalker
-                && state == FrostedIceBlock.getMeltedState()
-                && state.get(FluidBlock.LEVEL) == 0;
+                && state.getBlock() == Blocks.WATER
+                && state.getValue(LiquidBlock.LEVEL) == 0;
     }
 
     /**
@@ -591,19 +591,19 @@ public interface MovementHelper extends ActionCosts, Helper {
         if (!state.getFluidState().isEmpty()) {
             // used for frostwalker so only includes blocks where we are still on ground when leaving them to any side
             if (block instanceof SlabBlock) {
-                if (state.get(SlabBlock.TYPE) != SlabType.BOTTOM) {
+                if (state.getValue(SlabBlock.TYPE) != SlabType.BOTTOM) {
                     return true;
                 }
-            } else if (block instanceof StairsBlock) {
-                if (state.get(StairsBlock.HALF) == BlockHalf.TOP) {
+            } else if (block instanceof StairBlock) {
+                if (state.getValue(StairBlock.HALF) == Half.TOP) {
                     return true;
                 }
-                StairShape shape = state.get(StairsBlock.SHAPE);
-                if (shape == StairShape.INNER_LEFT || shape == StairShape.INNER_RIGHT) {
+                StairsShape shape = state.getValue(StairBlock.SHAPE);
+                if (shape == StairsShape.INNER_LEFT || shape == StairsShape.INNER_RIGHT) {
                     return true;
                 }
-            } else if (block instanceof TrapdoorBlock) {
-                if (!state.get(TrapdoorBlock.OPEN) && state.get(TrapdoorBlock.HALF) == BlockHalf.TOP) {
+            } else if (block instanceof TrapDoorBlock) {
+                if (!state.getValue(TrapDoorBlock.OPEN) && state.getValue(TrapDoorBlock.HALF) == Half.TOP) {
                     return true;
                 }
             } else if (block == Blocks.SCAFFOLDING) {
@@ -615,7 +615,7 @@ public interface MovementHelper extends ActionCosts, Helper {
                 return false;
             }
             Block blockAbove = context.getBlock(x, y + 1, z);
-            if (blockAbove instanceof FluidBlock) {
+            if (blockAbove instanceof LiquidBlock) {
                 return false;
             }
         }
@@ -686,7 +686,7 @@ public interface MovementHelper extends ActionCosts, Helper {
 
     static boolean isBottomSlab(BlockState state) {
         return state.getBlock() instanceof SlabBlock
-                && state.get(SlabBlock.TYPE) == SlabType.BOTTOM;
+                && state.getValue(SlabBlock.TYPE) == SlabType.BOTTOM;
     }
 
     /**
@@ -717,7 +717,7 @@ public interface MovementHelper extends ActionCosts, Helper {
         state.setTarget(new MovementTarget(
                 RotationUtils.calcRotationFromVec3d(ctx.playerHead(),
                         VecUtils.getBlockPosCenter(pos),
-                        ctx.playerRotations()).withPitch(ctx.playerRotations().getPitch()),
+                        ctx.playerRotations()).withPitch(ctx.playerRotations().getXRot()),
                 false
         )).setInput(Input.MOVE_FORWARD, true);
     }
@@ -730,7 +730,7 @@ public interface MovementHelper extends ActionCosts, Helper {
      * @return Whether or not the block is water
      */
     static boolean isWater(BlockState state) {
-        Fluid f = state.getFluidState().getFluid();
+        Fluid f = state.getFluidState().getType();
         return f == Fluids.WATER || f == Fluids.FLOWING_WATER;
     }
 
@@ -747,7 +747,7 @@ public interface MovementHelper extends ActionCosts, Helper {
     }
 
     static boolean isLava(BlockState state) {
-        Fluid f = state.getFluidState().getFluid();
+        Fluid f = state.getFluidState().getType();
         return f == Fluids.LAVA || f == Fluids.FLOWING_LAVA;
     }
 
@@ -768,16 +768,16 @@ public interface MovementHelper extends ActionCosts, Helper {
 
     static boolean possiblyFlowing(BlockState state) {
         FluidState fluidState = state.getFluidState();
-        return fluidState.getFluid() instanceof FlowableFluid
-                && fluidState.getFluid().getLevel(fluidState) != 8;
+        return fluidState.getType() instanceof FlowingFluid
+                && fluidState.getAmount() != 8;
     }
 
     static boolean isFlowing(int x, int y, int z, BlockState state, BlockStateInterface bsi) {
         FluidState fluidState = state.getFluidState();
-        if (!(fluidState.getFluid() instanceof FlowableFluid)) {
+        if (!(fluidState.getType() instanceof FlowingFluid)) {
             return false;
         }
-        if (fluidState.getFluid().getLevel(fluidState) != 8) {
+        if (fluidState.getAmount() != 8) {
             return true;
         }
         return possiblyFlowing(bsi.get0(x + 1, y, z))
@@ -788,8 +788,8 @@ public interface MovementHelper extends ActionCosts, Helper {
 
     static boolean isBlockNormalCube(BlockState state) {
         Block block = state.getBlock();
-        if (block instanceof BambooBlock
-                || block instanceof PistonExtensionBlock
+        if (block instanceof BambooStalkBlock
+                || block instanceof MovingPistonBlock
                 || block instanceof ScaffoldingBlock
                 || block instanceof ShulkerBoxBlock
                 || block instanceof PointedDripstoneBlock
@@ -797,7 +797,7 @@ public interface MovementHelper extends ActionCosts, Helper {
             return false;
         }
         try {
-            return Block.isShapeFullCube(state.getCollisionShape(null, null));
+            return Block.isShapeFullBlock(state.getCollisionShape(null, null));
         } catch (Exception ignored) {
             // if we can't get the collision shape, assume it's bad and add to blocksToAvoid
         }
@@ -813,7 +813,7 @@ public interface MovementHelper extends ActionCosts, Helper {
             found = true;
         }
         for (int i = 0; i < 5; i++) {
-            BlockPos against1 = placeAt.offset(HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i]);
+            BlockPos against1 = placeAt.relative(HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i]);
             if (MovementHelper.canPlaceAgainst(ctx, against1)) {
                 if (!((Baritone) baritone).getInventoryBehavior().selectThrowawayForLocation(false, placeAt.getX(), placeAt.getY(), placeAt.getZ())) { // get ready to place a throwaway block
                     Helper.HELPER.logDebug("bb pls get me some blocks. dirt, netherrack, cobble");
@@ -823,10 +823,10 @@ public interface MovementHelper extends ActionCosts, Helper {
                 double faceX = (placeAt.getX() + against1.getX() + 1.0D) * 0.5D;
                 double faceY = (placeAt.getY() + against1.getY() + 0.5D) * 0.5D;
                 double faceZ = (placeAt.getZ() + against1.getZ() + 1.0D) * 0.5D;
-                Rotation place = RotationUtils.calcRotationFromVec3d(wouldSneak ? RayTraceUtils.inferSneakingEyePosition(ctx.player()) : ctx.playerHead(), new Vec3d(faceX, faceY, faceZ), ctx.playerRotations());
+                Rotation place = RotationUtils.calcRotationFromVec3d(wouldSneak ? RayTraceUtils.inferSneakingEyePosition(ctx.player()) : ctx.playerHead(), new Vec3(faceX, faceY, faceZ), ctx.playerRotations());
                 Rotation actual = baritone.getLookBehavior().getAimProcessor().peekRotation(place);
                 HitResult res = RayTraceUtils.rayTraceTowards(ctx.player(), actual, ctx.playerController().getBlockReachDistance(), wouldSneak);
-                if (res != null && res.getType() == HitResult.Type.BLOCK && ((BlockHitResult) res).getBlockPos().equals(against1) && ((BlockHitResult) res).getBlockPos().offset(((BlockHitResult) res).getSide()).equals(placeAt)) {
+                if (res != null && res.getType() == HitResult.Type.BLOCK && ((BlockHitResult) res).getBlockPos().equals(against1) && ((BlockHitResult) res).getBlockPos().relative(((BlockHitResult) res).getDirection()).equals(placeAt)) {
                     state.setTarget(new MovementTarget(place, true));
                     found = true;
 
@@ -840,9 +840,9 @@ public interface MovementHelper extends ActionCosts, Helper {
         }
         if (ctx.getSelectedBlock().isPresent()) {
             BlockPos selectedBlock = ctx.getSelectedBlock().get();
-            Direction side = ((BlockHitResult) ctx.objectMouseOver()).getSide();
+            Direction side = ((BlockHitResult) ctx.objectMouseOver()).getDirection();
             // only way for selectedBlock.equals(placeAt) to be true is if it's replacable
-            if (selectedBlock.equals(placeAt) || (MovementHelper.canPlaceAgainst(ctx, selectedBlock) && selectedBlock.offset(side).equals(placeAt))) {
+            if (selectedBlock.equals(placeAt) || (MovementHelper.canPlaceAgainst(ctx, selectedBlock) && selectedBlock.relative(side).equals(placeAt))) {
                 if (wouldSneak) {
                     state.setInput(Input.SNEAK, true);
                 }

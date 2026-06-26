@@ -21,21 +21,21 @@ import baritone.api.utils.BlockUtils;
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.pathing.PathingBlockType;
 import java.util.*;
-import net.minecraft.block.AirBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.FlowerBlock;
-import net.minecraft.block.ShortPlantBlock;
-import net.minecraft.block.TallPlantBlock;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.ChunkSection;
-import net.minecraft.world.chunk.PalettedContainer;
-import net.minecraft.world.chunk.WorldChunk;
-import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FlowerBlock;
+import net.minecraft.world.level.block.BushBlock;
+import net.minecraft.world.level.block.TallGrassBlock;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.dimension.DimensionType;
 
 import static baritone.utils.BlockStateInterface.getFromChunk;
 
@@ -47,16 +47,16 @@ public final class ChunkPacker {
 
     private ChunkPacker() {}
 
-    public static CachedChunk pack(WorldChunk chunk) {
+    public static CachedChunk pack(LevelChunk chunk) {
         //long start = System.nanoTime() / 1000000L;
 
         Map<String, List<BlockPos>> specialBlocks = new HashMap<>();
         final int height = chunk.getHeight();
         BitSet bitSet = new BitSet(CachedChunk.size(height));
         try {
-            ChunkSection[] chunkInternalStorageArray = chunk.getSectionArray();
+            LevelChunkSection[] chunkInternalStorageArray = chunk.getSections();
             for (int y0 = 0; y0 < height / 16; y0++) {
-                ChunkSection extendedblockstorage = chunkInternalStorageArray[y0];
+                LevelChunkSection extendedblockstorage = chunkInternalStorageArray[y0];
                 if (extendedblockstorage == null) {
                     // any 16x16x16 area that's all air will have null storage
                     // for example, in an ocean biome, with air from y=64 to y=256
@@ -68,7 +68,7 @@ public final class ChunkPacker {
                     // since a bitset is initialized to all zero, and air is saved as zeros
                     continue;
                 }
-                PalettedContainer<BlockState> bsc = extendedblockstorage.getBlockStateContainer();
+                PalettedContainer<BlockState> bsc = extendedblockstorage.getStates();
                 int yReal = y0 << 4;
                 // the mapping of BlockStateContainer.getIndex from xyz to index is y << 8 | z << 4 | x;
                 // for better cache locality, iterate in that order
@@ -84,7 +84,7 @@ public final class ChunkPacker {
                             Block block = state.getBlock();
                             if (CachedChunk.BLOCKS_TO_KEEP_TRACK_OF.contains(block)) {
                                 String name = BlockUtils.blockToString(block);
-                                specialBlocks.computeIfAbsent(name, b -> new ArrayList<>()).add(new BlockPos(x, y+chunk.getBottomY(), z));
+                                specialBlocks.computeIfAbsent(name, b -> new ArrayList<>()).add(new BlockPos(x, y + chunk.getMinY(), z));
                             }
                         }
                     }
@@ -94,7 +94,7 @@ public final class ChunkPacker {
             e.printStackTrace();
         }
         //long end = System.nanoTime() / 1000000L;
-        //System.out.println("Chunk packing took " + (end - start) + "ms for " + chunk.x + "," + chunk.z);
+        //System.out.println("Chunk packing took " + (end - start) + "ms for " + chunk.x + "," + chunk.z());
         BlockState[] blocks = new BlockState[256];
 
         // get top block in columns
@@ -109,14 +109,14 @@ public final class ChunkPacker {
                         continue https;
                     }
                 }
-                blocks[z << 4 | x] = Blocks.AIR.getDefaultState();
+                blocks[z << 4 | x] = Blocks.AIR.defaultBlockState();
             }
         }
         // @formatter:on
-        return new CachedChunk(chunk.getPos().x, chunk.getPos().z, height, bitSet, blocks, specialBlocks, System.currentTimeMillis());
+        return new CachedChunk(chunk.getPos().x(), chunk.getPos().z(), height, bitSet, blocks, specialBlocks, System.currentTimeMillis());
     }
 
-    private static PathingBlockType getPathingBlockType(BlockState state, WorldChunk chunk, int x, int y, int z) {
+    private static PathingBlockType getPathingBlockType(BlockState state, LevelChunk chunk, int x, int y, int z) {
         Block block = state.getBlock();
         if (MovementHelper.isWater(state)) {
             // only water source blocks are plausibly usable, flowing water should be avoid
@@ -124,7 +124,7 @@ public final class ChunkPacker {
             if (MovementHelper.possiblyFlowing(state)) {
                 return PathingBlockType.AVOID;
             }
-            int adjY = y - chunk.getBottomY();
+            int adjY = y - chunk.getMinY();
             if (
                     (x != 15 && MovementHelper.possiblyFlowing(getFromChunk(chunk, x + 1, adjY, z)))
                             || (x != 0 && MovementHelper.possiblyFlowing(getFromChunk(chunk, x - 1, adjY, z)))
@@ -134,7 +134,7 @@ public final class ChunkPacker {
                 return PathingBlockType.AVOID;
             }
             if (x == 0 || x == 15 || z == 0 || z == 15) {
-                Vec3d flow = state.getFluidState().getVelocity(chunk, new BlockPos(x + (chunk.getPos().x << 4), y, z + (chunk.getPos().z << 4)));
+                Vec3 flow = state.getFluidState().getFlow(chunk, new BlockPos(x + (chunk.getPos().x() << 4), y, z + (chunk.getPos().z() << 4)));
                 if (flow.x != 0.0 || flow.z != 0.0) {
                     return PathingBlockType.WATER;
                 }
@@ -150,29 +150,29 @@ public final class ChunkPacker {
         // however, this failed in the nether when you were near a nether fortress
         // because fences check their adjacent blocks in the world for their fence connection status to determine AABB shape
         // this caused a nullpointerexception when we saved chunks on unload, because they were unable to check their neighbors
-        if (block instanceof AirBlock || block instanceof ShortPlantBlock || block instanceof TallPlantBlock || block instanceof FlowerBlock) {
+        if (block instanceof AirBlock || block instanceof BushBlock || block instanceof TallGrassBlock || block instanceof FlowerBlock) {
             return PathingBlockType.AIR;
         }
 
         return PathingBlockType.SOLID;
     }
 
-    public static BlockState pathingTypeToBlock(PathingBlockType type, DimensionType dimension, RegistryKey<World> dimensionId) {
+    public static BlockState pathingTypeToBlock(PathingBlockType type, DimensionType dimension, ResourceKey<Level> dimensionId) {
         switch (type) {
             case AIR:
-                return Blocks.AIR.getDefaultState();
+                return Blocks.AIR.defaultBlockState();
             case WATER:
-                return Blocks.WATER.getDefaultState();
+                return Blocks.WATER.defaultBlockState();
             case AVOID:
-                return Blocks.LAVA.getDefaultState();
+                return Blocks.LAVA.defaultBlockState();
             case SOLID:
                 // Dimension solid types
-                if (dimensionId == World.NETHER) {
-                    return Blocks.NETHERRACK.getDefaultState();
-                } else if (dimensionId == World.END) {
-                    return Blocks.END_STONE.getDefaultState();
+                if (dimensionId == Level.NETHER) {
+                    return Blocks.NETHERRACK.defaultBlockState();
+                } else if (dimensionId == Level.END) {
+                    return Blocks.END_STONE.defaultBlockState();
                 } else { // overworld, or some custom dimension
-                    return Blocks.STONE.getDefaultState();
+                    return Blocks.STONE.defaultBlockState();
                 }
             default:
                 return null;

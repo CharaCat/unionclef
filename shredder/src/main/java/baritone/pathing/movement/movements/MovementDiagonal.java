@@ -32,51 +32,51 @@ import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 
 public class MovementDiagonal extends Movement {
 
     private static final double SQRT_2 = Math.sqrt(2);
 
     public MovementDiagonal(IBaritone baritone, BetterBlockPos start, Direction dir1, Direction dir2, int dy) {
-        this(baritone, start, start.offset(dir1), start.offset(dir2), dir2, dy);
-        // super(start, start.offset(dir1).offset(dir2), new BlockPos[]{start.offset(dir1), start.offset(dir1).up(), start.offset(dir2), start.offset(dir2).up(), start.offset(dir1).offset(dir2), start.offset(dir1).offset(dir2).up()}, new BlockPos[]{start.offset(dir1).offset(dir2).down()});
+        this(baritone, start, start.add(dir1), start.add(dir2), dir2, dy);
+        // super(start, start.add(dir1).add(dir2), new BlockPos[]{start.add(dir1), start.add(dir1).above(), start.add(dir2), start.add(dir2).above(), start.add(dir1).add(dir2), start.add(dir1).add(dir2).above()}, new BlockPos[]{start.add(dir1).add(dir2).below()});
     }
 
     private MovementDiagonal(IBaritone baritone, BetterBlockPos start, BetterBlockPos dir1, BetterBlockPos dir2, Direction drr2, int dy) {
-        this(baritone, start, dir1.offset(drr2).up(dy), dir1, dir2);
+        this(baritone, start, dir1.add(drr2).above(dy), dir1, dir2);
     }
 
     private MovementDiagonal(IBaritone baritone, BetterBlockPos start, BetterBlockPos end, BetterBlockPos dir1, BetterBlockPos dir2) {
-        super(baritone, start, end, new BetterBlockPos[]{dir1, dir1.up(), dir2, dir2.up(), end, end.up()});
+        super(baritone, start, end, new BetterBlockPos[]{dir1, dir1.above(), dir2, dir2.above(), end, end.above()});
     }
 
     @Override
     protected boolean safeToCancel(MovementState state) {
         //too simple. backfill does not work after cornering with this
-        //return context.precomputedData.canWalkOn(ctx, ctx.playerFeet().down());
-        ClientPlayerEntity player = ctx.player();
+        //return context.precomputedData.canWalkOn(ctx, ctx.playerFeet().below());
+        LocalPlayer player = ctx.player();
         double offset = 0.25;
-        double x = player.getEntityPos().x;
-        double y = player.getEntityPos().y - 1;
-        double z = player.getEntityPos().z;
+        double x = player.position().x;
+        double y = player.position().y - 1;
+        double z = player.position().z;
         //standard
         if (ctx.playerFeet().equals(src)) {
             return true;
         }
         //both corners are walkable
-        if (MovementHelper.canWalkOn(ctx, new BlockPos(src.x, src.y - 1, dest.z))
-                && MovementHelper.canWalkOn(ctx, new BlockPos(dest.x, src.y - 1, src.z))) {
+        if (MovementHelper.canWalkOn(ctx, new BlockPos(src.x(), src.y - 1, dest.z()))
+                && MovementHelper.canWalkOn(ctx, new BlockPos(dest.x(), src.y - 1, src.z()))) {
             return true;
         }
         //we are in a likely unwalkable corner, check for a supporting block
-        if (ctx.playerFeet().equals(new BetterBlockPos(src.x, src.y, dest.z))
-                || ctx.playerFeet().equals(new BetterBlockPos(dest.x, src.y, src.z))) {
+        if (ctx.playerFeet().equals(new BetterBlockPos(src.x(), src.y, dest.z()))
+                || ctx.playerFeet().equals(new BetterBlockPos(dest.x(), src.y, src.z()))) {
             return (MovementHelper.canWalkOn(ctx, new BetterBlockPos(x + offset, y, z + offset))
                     || MovementHelper.canWalkOn(ctx, new BetterBlockPos(x + offset, y, z - offset))
                     || MovementHelper.canWalkOn(ctx, new BetterBlockPos(x - offset, y, z + offset))
@@ -88,7 +88,7 @@ public class MovementDiagonal extends Movement {
     @Override
     public double calculateCost(CalculationContext context) {
         MutableMoveResult result = new MutableMoveResult();
-        cost(context, src.x, src.y, src.z, dest.x, dest.z, result);
+        cost(context, src.x(), src.y, src.z(), dest.x(), dest.z(), result);
         if (result.y != dest.y) {
             return COST_INF; // doesn't apply to us, this position is incorrect
         }
@@ -97,13 +97,13 @@ public class MovementDiagonal extends Movement {
 
     @Override
     protected Set<BetterBlockPos> calculateValidPositions() {
-        BetterBlockPos diagA = new BetterBlockPos(src.x, src.y, dest.z);
-        BetterBlockPos diagB = new BetterBlockPos(dest.x, src.y, src.z);
+        BetterBlockPos diagA = new BetterBlockPos(src.x(), src.y, dest.z());
+        BetterBlockPos diagB = new BetterBlockPos(dest.x(), src.y, src.z());
         if (dest.y < src.y) {
-            return ImmutableSet.of(src, dest.up(), diagA, diagB, dest, diagA.down(), diagB.down());
+            return ImmutableSet.of(src, dest.above(), diagA, diagB, dest, diagA.below(), diagB.below());
         }
         if (dest.y > src.y) {
-            return ImmutableSet.of(src, src.up(), diagA, diagB, dest, diagA.up(), diagB.up());
+            return ImmutableSet.of(src, src.above(), diagA, diagB, dest, diagA.above(), diagB.above());
         }
         return ImmutableSet.of(src, dest, diagA, diagB);
     }
@@ -261,10 +261,10 @@ public class MovementDiagonal extends Movement {
 
         if (ctx.playerFeet().equals(dest)) {
             return state.setStatus(MovementStatus.SUCCESS);
-        } else if (!playerInValidPosition() && !(MovementHelper.isLiquid(ctx, src) && getValidPositions().contains(ctx.playerFeet().up()))) {
+        } else if (!playerInValidPosition() && !(MovementHelper.isLiquid(ctx, src) && getValidPositions().contains(ctx.playerFeet().above()))) {
             return state.setStatus(MovementStatus.UNREACHABLE);
         }
-        if (dest.y > src.y && ctx.player().getEntityPos().y < src.y + 0.1 && ctx.player().horizontalCollision) {
+        if (dest.y > src.y && ctx.player().position().y < src.y + 0.1 && ctx.player().horizontalCollision) {
             state.setInput(Input.JUMP, true);
         }
         if (sprint()) {
@@ -298,7 +298,7 @@ public class MovementDiagonal extends Movement {
         }
         List<BlockPos> result = new ArrayList<>();
         for (int i = 4; i < 6; i++) {
-            if (!MovementHelper.canWalkThrough(bsi, positionsToBreak[i].x, positionsToBreak[i].y, positionsToBreak[i].z)) {
+            if (!MovementHelper.canWalkThrough(bsi, positionsToBreak[i].x(), positionsToBreak[i].y, positionsToBreak[i].z())) {
                 result.add(positionsToBreak[i]);
             }
         }
@@ -313,7 +313,7 @@ public class MovementDiagonal extends Movement {
         }
         List<BlockPos> result = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
-            if (!MovementHelper.canWalkThrough(bsi, positionsToBreak[i].x, positionsToBreak[i].y, positionsToBreak[i].z)) {
+            if (!MovementHelper.canWalkThrough(bsi, positionsToBreak[i].x(), positionsToBreak[i].y, positionsToBreak[i].z())) {
                 result.add(positionsToBreak[i]);
             }
         }

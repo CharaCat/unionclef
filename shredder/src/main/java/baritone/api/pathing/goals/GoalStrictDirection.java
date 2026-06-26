@@ -19,8 +19,8 @@ package baritone.api.pathing.goals;
 
 import baritone.api.utils.BetterBlockPos;
 import baritone.api.utils.SettingsUtil;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 
 /**
  * Dig a tunnel in a certain direction, but if you have to deviate from the path, go back to where you started
@@ -37,8 +37,8 @@ public class GoalStrictDirection implements Goal {
         x = origin.getX();
         y = origin.getY();
         z = origin.getZ();
-        dx = direction.getOffsetX();
-        dz = direction.getOffsetZ();
+        dx = direction.getStepX();
+        dz = direction.getStepZ();
         if (dx == 0 && dz == 0) {
             throw new IllegalArgumentException(direction + "");
         }
@@ -51,9 +51,9 @@ public class GoalStrictDirection implements Goal {
 
     @Override
     public double heuristic(int x, int y, int z) {
-        int distanceFromStartInDesiredDirection = (x - this.x) * dx + (z - this.z) * dz;
+        int distanceFromStartInDesiredDirection = (x - this.x()) * dx + (z - this.z()) * dz;
 
-        int distanceFromStartInIncorrectDirection = Math.abs((x - this.x) * dz) + Math.abs((z - this.z) * dx);
+        int distanceFromStartInIncorrectDirection = Math.abs((x - this.x()) * dz) + Math.abs((z - this.z()) * dx);
 
         int verticalDistanceFromStart = Math.abs(y - this.y);
 
@@ -106,4 +106,7 @@ public class GoalStrictDirection implements Goal {
                 SettingsUtil.maybeCensor(dz)
         );
     }
+
+    public int x() { return x; }
+    public int z() { return z; }
 }

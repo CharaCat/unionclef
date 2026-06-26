@@ -49,8 +49,8 @@ public final class AStarPathFinder extends AbstractNodeCostSearch {
 
     @Override
     protected Optional<IPath> calculate0(long primaryTimeout, long failureTimeout) {
-        int minY = calcContext.world.getDimension().minY();
-        int height = calcContext.world.getDimension().height();
+        int minY = calcContext.world.dimensionType().minY();
+        int height = calcContext.world.dimensionType().height();
         startNode = getNodeAtPosition(startX, startY, startZ, BetterBlockPos.longHash(startX, startY, startZ));
         startNode.cost = 0;
         startNode.combinedCost = startNode.estimatedCostToGoal;
@@ -94,7 +94,7 @@ public final class AStarPathFinder extends AbstractNodeCostSearch {
             PathNode currentNode = openSet.removeLowest();
             mostRecentConsidered = currentNode;
             numNodes++;
-            if (goal.isInGoal(currentNode.x, currentNode.y, currentNode.z)) {
+            if (goal.isInGoal(currentNode.x(), currentNode.y, currentNode.z())) {
                 logDebug("Took " + (System.currentTimeMillis() - startTime) + "ms, " + numMovementsConsidered + " movements considered");
                 return Optional.of(new Path(startNode, currentNode, numNodes, goal, calcContext));
             }
@@ -115,7 +115,7 @@ public final class AStarPathFinder extends AbstractNodeCostSearch {
                     continue;
                 }
                 res.reset();
-                moves.apply(calcContext, currentNode.x, currentNode.y, currentNode.z, res);
+                moves.apply(calcContext, currentNode.x(), currentNode.y, currentNode.z(), res);
                 numMovementsConsidered++;
                 double actionCost = res.cost;
                 if (actionCost >= ActionCosts.COST_INF) {
@@ -125,7 +125,7 @@ public final class AStarPathFinder extends AbstractNodeCostSearch {
                     throw new IllegalStateException(moves + " calculated implausible cost " + actionCost);
                 }
                 // check destination after verifying it's not COST_INF -- some movements return a static IMPOSSIBLE object with COST_INF and destination being 0,0,0 to avoid allocating a new result for every failed calculation
-                if (moves.dynamicXZ && !worldBorder.entirelyContains(res.x, res.z)) { // see issue #218
+                if (moves.dynamicXZ && !worldBorder.entirelyContains(res.x(), res.z())) { // see issue #218
                     continue;
                 }
                 if (!moves.dynamicXZ && (res.x != newX || res.z != newZ)) {
@@ -134,12 +134,12 @@ public final class AStarPathFinder extends AbstractNodeCostSearch {
                 if (!moves.dynamicY && res.y != currentNode.y + moves.yOffset) {
                     throw new IllegalStateException(moves + " " + res.y + " " + (currentNode.y + moves.yOffset));
                 }
-                long hashCode = BetterBlockPos.longHash(res.x, res.y, res.z);
+                long hashCode = BetterBlockPos.longHash(res.x(), res.y, res.z());
                 if (isFavoring) {
                     // see issue #18
                     actionCost *= favoring.calculate(hashCode);
                 }
-                PathNode neighbor = getNodeAtPosition(res.x, res.y, res.z, hashCode);
+                PathNode neighbor = getNodeAtPosition(res.x(), res.y, res.z(), hashCode);
                 double tentativeCost = currentNode.cost + actionCost;
                 if (neighbor.cost - tentativeCost > minimumImprovement) {
                     neighbor.previous = currentNode;

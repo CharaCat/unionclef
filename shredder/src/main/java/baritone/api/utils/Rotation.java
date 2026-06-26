@@ -48,10 +48,18 @@ public class Rotation {
         return this.yaw;
     }
 
+    public float getYRot() {
+        return this.yaw;
+    }
+
     /**
      * @return The pitch of this rotation
      */
     public float getPitch() {
+        return this.pitch;
+    }
+
+    public float getXRot() {
         return this.pitch;
     }
 

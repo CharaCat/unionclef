@@ -20,53 +20,16 @@ package baritone.api.utils;
 import baritone.api.utils.accessor.IItemStack;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.command.permission.PermissionPredicate;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.loot.LootTable;
-import net.minecraft.loot.context.LootContextParameters;
-import net.minecraft.loot.context.LootContextTypes;
-import net.minecraft.loot.context.LootWorldContext;
-import net.minecraft.registry.CombinedDynamicRegistries;
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryLoader;
-import net.minecraft.registry.ReloadableRegistries;
-import net.minecraft.registry.ServerDynamicRegistryType;
-import net.minecraft.resource.DataConfiguration;
-import net.minecraft.resource.DefaultResourcePack;
-import net.minecraft.resource.LifecycledResourceManager;
-import net.minecraft.resource.LifecycledResourceManagerImpl;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.resource.ResourcePackManager;
-import net.minecraft.resource.ResourceType;
-import net.minecraft.resource.VanillaDataPackProvider;
-import net.minecraft.resource.featuretoggle.FeatureSet;
-import net.minecraft.server.DataPackContents;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.state.property.Property;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.RandomSequencesState;
-import net.minecraft.world.World;
-import net.minecraft.world.dimension.DimensionOptions;
-import net.minecraft.world.level.ServerWorldProperties;
-import net.minecraft.world.level.storage.LevelStorage;
-import net.minecraft.world.spawner.SpecialSpawner;
-import sun.misc.Unsafe;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.state.properties.Property;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -122,8 +85,8 @@ public final class BlockOptionalMeta {
             }
             String rawKey = parts[0];
             String rawValue = parts[1];
-            Property<?> key = block.getStateManager().getProperty(rawKey);
-            Comparable<?> value = castToIProperty(key).parse(rawValue)
+            Property<?> key = block.getStateDefinition().getProperty(rawKey);
+            Comparable<?> value = castToIProperty(key).getValue(rawValue)
                     .orElseThrow(() -> new IllegalArgumentException(String.format(
                             "\"%s\" is not a valid value for %s on %s",
                             rawValue, key, block
@@ -134,9 +97,9 @@ public final class BlockOptionalMeta {
     }
 
     private static Set<BlockState> getStates(@Nonnull Block block, @Nonnull Map<Property<?>, ?> properties) {
-        return block.getStateManager().getStates().stream()
+        return block.getStateDefinition().getPossibleStates().stream()
                 .filter(blockstate -> properties.entrySet().stream().allMatch(entry ->
-                        blockstate.get(entry.getKey()) == entry.getValue()
+                        blockstate .getValue(entry.getKey()) == entry.getValue()
                 ))
                 .collect(Collectors.toSet());
     }
@@ -179,7 +142,7 @@ public final class BlockOptionalMeta {
         //noinspection ConstantConditions
         int hash = ((IItemStack) (Object) stack).getBaritoneHash();
 
-        hash -= stack.getDamage();
+        hash -= stack.getDamageValue();
 
         return stackHashes.contains(hash);
     }
@@ -205,158 +168,13 @@ public final class BlockOptionalMeta {
         return stackHashes;
     }
 
-    private static Method getVanillaServerPack;
-
-    private static DefaultResourcePack getVanillaServerPack() {
-        if (getVanillaServerPack == null) {
-            getVanillaServerPack = Arrays.stream(VanillaDataPackProvider.class.getDeclaredMethods()).filter(field -> field.getReturnType() == DefaultResourcePack.class).findFirst().orElseThrow();
-            getVanillaServerPack.setAccessible(true);
-        }
-
-        try {
-            return (DefaultResourcePack) getVanillaServerPack.invoke(null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
-
     private static synchronized List<Item> drops(Block b) {
         return drops.computeIfAbsent(b, block -> {
-            Optional<RegistryKey<LootTable>> lootTableKey = block.getLootTableKey();
-            if (lootTableKey.isEmpty()) {
+            Item item = block.asItem();
+            if (item == Items.AIR) {
                 return Collections.emptyList();
             }
-            List<Item> items = new ArrayList<>();
-            try {
-                ServerLevelStub lv2 = ServerLevelStub.fastCreate();
-                LootWorldContext.Builder lv5 = new LootWorldContext.Builder(lv2)
-                    .add(LootContextParameters.ORIGIN, Vec3d.ZERO)
-                    .add(LootContextParameters.BLOCK_STATE, b.getDefaultState())
-                    .add(LootContextParameters.TOOL, new ItemStack(Items.NETHERITE_PICKAXE, 1));
-                getDrops(block, lv5).stream().map(ItemStack::getItem).forEach(items::add);
-            } catch (Throwable e) {
-                // MUST be Throwable, not Exception: ServerLevelStub's static init rebuilds the
-                // server dynamic registries (enchantments) on first touch, and on heavily-modded
-                // servers (agicraft) that can throw ExceptionInInitializerError — an Error, not an
-                // Exception. Letting it escape crashed the render thread (black screen, py4j dead)
-                // the FIRST time the agent placed/built a block. Swallow it: this block just gets
-                // no known drops (matching falls back), the client stays alive, building works.
-                e.printStackTrace();
-            }
-            return items;
+            return Collections.singletonList(item);
         });
-    }
-
-    private static List<ItemStack> getDrops(Block state, LootWorldContext.Builder params) {
-        Optional<RegistryKey<LootTable>> lv = state.getLootTableKey();
-        if (lv.isEmpty()) {
-            return Collections.emptyList();
-        }
-        LootWorldContext lv2 = params.add(LootContextParameters.BLOCK_STATE, state.getDefaultState()).build(LootContextTypes.BLOCK);
-        ServerLevelStub lv3 = (ServerLevelStub) lv2.getWorld();
-        LootTable lv4 = lv3.holder().getLootTable(lv.get());
-        return lv4.generateLoot(lv2);
-    }
-
-    public static class ServerLevelStub extends ServerWorld {
-        private static MinecraftClient client = MinecraftClient.getInstance();
-        private static Unsafe unsafe = getUnsafe();
-        // Lazily built (was `= load()` at class-init). A failed registry build — e.g. on a
-        // heavily-modded server whose enchantment JSONs reference tags absent from the resource
-        // snapshot at join time — used to throw during static init and PERMANENTLY poison this
-        // class (every later touch → NoClassDefFoundError). Lazy + fail-soft (see holder()) lets
-        // it retry on a later join when the data IS present, instead of staying dead until restart.
-        private static CompletableFuture<ReloadableRegistries.Lookup> registryLookup;
-
-        public ServerLevelStub(MinecraftServer $$0, Executor $$1, LevelStorage.Session $$2, ServerWorldProperties $$3, RegistryKey<World> $$4, DimensionOptions $$5, boolean $$6, long $$7, List<SpecialSpawner> $$8, boolean $$9, @Nullable RandomSequencesState $$10) {
-            super($$0, $$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9, $$10);
-        }
-
-        @Override
-        public FeatureSet getEnabledFeatures() {
-            assert client.world != null;
-            return client.world.getEnabledFeatures();
-        }
-
-        public static ServerLevelStub fastCreate() {
-            try {
-                return (ServerLevelStub) unsafe.allocateInstance(ServerLevelStub.class);
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        public DynamicRegistryManager getRegistryManager() {
-            throw new UnsupportedOperationException("ServerLevelStub.getRegistryManager");
-        }
-
-        public ReloadableRegistries.Lookup holder() {
-            // Lazy + fail-soft. Reached only via the synchronized drops() (which now catches
-            // Throwable), so a build failure is contained and NOT cached as a poison — we clear
-            // it and let the next join retry. Build once; reuse if it succeeded.
-            CompletableFuture<ReloadableRegistries.Lookup> lk = registryLookup;
-            if (lk == null || lk.isCompletedExceptionally()) {
-                lk = load();
-                registryLookup = lk;
-            }
-            try {
-                return lk.join();
-            } catch (Throwable e) {
-                registryLookup = null; // drop the failed future so a later join can retry
-                throw e;               // caught by drops() → empty drops, client stays alive
-            }
-        }
-
-        public static Unsafe getUnsafe() {
-            try {
-                Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-                theUnsafe.setAccessible(true);
-                return (Unsafe) theUnsafe.get(null);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        public static CompletableFuture<ReloadableRegistries.Lookup> load() {
-            ResourcePackManager packRepository = MinecraftClient.getInstance().getResourcePackManager();
-            LifecycledResourceManager closeableResourceManager = new LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, packRepository.createResourcePacks());
-            CombinedDynamicRegistries<ServerDynamicRegistryType> layeredRegistryAccess = loadAndReplaceLayer(
-                closeableResourceManager, ServerDynamicRegistryType.createCombinedDynamicRegistries(), ServerDynamicRegistryType.WORLDGEN, RegistryLoader.DYNAMIC_REGISTRIES
-            );
-            return DataPackContents.reload(
-                closeableResourceManager,
-                layeredRegistryAccess,
-                List.of(),
-                DataConfiguration.SAFE_MODE.enabledFeatures(),
-                CommandManager.RegistrationEnvironment.INTEGRATED,
-                PermissionPredicate.ALL,
-                Runnable::run,
-                MinecraftClient.getInstance()
-            ).thenApply(DataPackContents::getReloadableRegistries);
-        }
-
-        private static CombinedDynamicRegistries<ServerDynamicRegistryType> loadAndReplaceLayer(
-            ResourceManager resourceManager,
-            CombinedDynamicRegistries<ServerDynamicRegistryType> registryAccess,
-            ServerDynamicRegistryType registryLayer,
-            List<RegistryLoader.Entry<?>> registryData
-        ) {
-            DynamicRegistryManager.Immutable frozen = loadLayer(resourceManager, registryAccess, registryLayer, registryData);
-            return registryAccess.with(registryLayer, frozen);
-        }
-
-        private static DynamicRegistryManager.Immutable loadLayer(
-            ResourceManager resourceManager,
-            CombinedDynamicRegistries<ServerDynamicRegistryType> registryAccess,
-            ServerDynamicRegistryType registryLayer,
-            List<RegistryLoader.Entry<?>> registryData
-        ) {
-            DynamicRegistryManager.Immutable frozen = registryAccess.getPrecedingRegistryManagers(registryLayer);
-            return RegistryLoader.loadFromResource(resourceManager, frozen.stream().toList(), registryData);
-        }
-
     }
 }

@@ -34,4 +34,7 @@ public class MyChunkPos {
     public String toString() {
         return x + ", " + z;
     }
+
+    public int x() { return x; }
+    public int z() { return z; }
 }

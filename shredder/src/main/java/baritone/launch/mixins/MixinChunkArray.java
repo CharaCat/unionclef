@@ -23,14 +23,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
 
-@Mixin(targets = "net.minecraft.client.world.ClientChunkManager$ClientChunkMap")
+@Mixin(targets = "net.minecraft.client.multiplayer.ClientChunkCache$ClientChunkMap")
 public abstract class MixinChunkArray implements IChunkArray {
     @Final
     @Shadow
-    AtomicReferenceArray<WorldChunk> chunks;
+    AtomicReferenceArray<LevelChunk> chunks;
     @Final
     @Shadow
     int radius;
@@ -52,7 +52,7 @@ public abstract class MixinChunkArray implements IChunkArray {
     abstract int getIndex(int x, int z);
 
     @Shadow
-    protected abstract void set(int index, WorldChunk chunk);
+    protected abstract void set(int index, LevelChunk chunk);
 
     @Override
     public int centerX() {
@@ -70,7 +70,7 @@ public abstract class MixinChunkArray implements IChunkArray {
     }
 
     @Override
-    public AtomicReferenceArray<WorldChunk> getChunks() {
+    public AtomicReferenceArray<LevelChunk> getChunks() {
         return chunks;
     }
 
@@ -79,13 +79,13 @@ public abstract class MixinChunkArray implements IChunkArray {
         centerChunkX = other.centerX();
         centerChunkZ = other.centerZ();
 
-        AtomicReferenceArray<WorldChunk> copyingFrom = other.getChunks();
+        AtomicReferenceArray<LevelChunk> copyingFrom = other.getChunks();
         for (int k = 0; k < copyingFrom.length(); ++k) {
-            WorldChunk chunk = copyingFrom.get(k);
+            LevelChunk chunk = copyingFrom.get(k);
             if (chunk != null) {
                 ChunkPos chunkpos = chunk.getPos();
-                if (isInRadius(chunkpos.x, chunkpos.z)) {
-                    int index = getIndex(chunkpos.x, chunkpos.z);
+                if (isInRadius(chunkpos.x(), chunkpos.z())) {
+                    int index = getIndex(chunkpos.x(), chunkpos.z());
                     if (chunks.get(index) != null) {
                         throw new IllegalStateException("Doing this would mutate the client's REAL loaded chunks?!");
                     }

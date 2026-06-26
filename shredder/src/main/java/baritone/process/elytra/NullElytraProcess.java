@@ -22,7 +22,7 @@ import baritone.api.pathing.goals.Goal;
 import baritone.api.process.IElytraProcess;
 import baritone.api.process.PathingCommand;
 import baritone.utils.BaritoneProcessHelper;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 
 /**
  * @author Brady

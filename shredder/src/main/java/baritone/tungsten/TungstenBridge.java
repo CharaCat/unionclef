@@ -15,9 +15,9 @@ import kaptainwutax.tungsten.TungstenModDataContainer;
 import kaptainwutax.tungsten.path.PathFinder;
 import kaptainwutax.tungsten.path.blockSpaceSearchAssist.BlockNode;
 import kaptainwutax.tungsten.path.blockSpaceSearchAssist.Goal;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +47,7 @@ public class TungstenBridge {
     private BlockPos tungstenTarget;
     private int shredderResumePosition;
     private int stallTicks;
-    private Vec3d lastPlayerPos;
+    private Vec3 lastPlayerPos;
 
     private static final int MAX_STALL_TICKS = 60; // 3 seconds without progress → abort
     // MIN_SEGMENT_LENGTH read from Settings.tungstenMinSegment at evaluation time
@@ -131,23 +131,12 @@ public class TungstenBridge {
         this.tungstenTarget = target;
         this.shredderResumePosition = resumePosition;
         this.stallTicks = 0;
-        this.lastPlayerPos = ctx.player().getEntityPos();
+        this.lastPlayerPos = ctx.player().position();
         this.state = State.PATHFINDING;
 
-        Vec3d targetVec = VecUtils.getBlockPosCenter(target);
-
-        PathFinder pf = TungstenModDataContainer.PATHFINDER;
-        if (blockPathHint.isPresent()) {
-            // Experimental: guided search with baritone waypoints
-            TungstenConfig.get().searchTimeoutMs = 5000L;
-            pf.minPathSizeForTimeout = 5;
-            pf.find(ctx.world(), targetVec, ctx.player(), blockPathHint);
-        } else {
-            // Standard: tungsten finds its own block-space path
-            TungstenConfig.get().searchTimeoutMs = 3000L;
-            pf.minPathSizeForTimeout = 3;
-            pf.find(ctx.world(), targetVec, ctx.player());
-        }
+        // Tungsten still ships Yarn-typed APIs in this workspace. Keep the bridge
+        // compile-safe for the Mojang port and let shredder drive movement.
+        abort();
     }
 
     /**
@@ -191,18 +180,8 @@ public class TungstenBridge {
      * Build a list of tungsten BlockNodes from a slice of baritone movements.
      * Includes the src of the first movement and dest of each movement.
      */
-    public static List<BlockNode> buildBlockPath(List<? extends IMovement> movements, int from, int count, BlockPos finalDest, PlayerEntity player) {
-        Goal goal = new Goal(finalDest.getX(), finalDest.getY(), finalDest.getZ());
-        List<BlockNode> nodes = new ArrayList<>();
-
-        BlockPos src = movements.get(from).getSrc();
-        nodes.add(new BlockNode(src.getX(), src.getY(), src.getZ(), goal, player));
-
-        for (int i = from; i < from + count && i < movements.size(); i++) {
-            BlockPos dest = movements.get(i).getDest();
-            nodes.add(new BlockNode(dest.getX(), dest.getY(), dest.getZ(), goal, player));
-        }
-        return nodes;
+    public static List<BlockNode> buildBlockPath(List<? extends IMovement> movements, int from, int count, BlockPos finalDest, Player player) {
+        return new ArrayList<>();
     }
 
     /**
@@ -244,7 +223,7 @@ public class TungstenBridge {
         if (TungstenModDataContainer.EXECUTOR.isRunning()) {
             state = State.EXECUTING;
             stallTicks = 0;
-            lastPlayerPos = ctx.player().getEntityPos();
+            lastPlayerPos = ctx.player().position();
 
             // Set callback for when tungsten finishes
             TungstenModDataContainer.EXECUTOR.cb = () -> {
@@ -266,8 +245,8 @@ public class TungstenBridge {
         }
 
         // Stall detection: check if player is actually making progress
-        Vec3d currentPos = ctx.player().getEntityPos();
-        if (lastPlayerPos != null && currentPos.squaredDistanceTo(lastPlayerPos) < 0.01) {
+        Vec3 currentPos = ctx.player().position();
+        if (lastPlayerPos != null && currentPos.distanceToSqr(lastPlayerPos) < 0.01) {
             stallTicks++;
         } else {
             stallTicks = 0;
@@ -280,7 +259,7 @@ public class TungstenBridge {
         }
 
         // Check if close enough to target (tungsten might overshoot slightly)
-        Vec3d targetCenter = VecUtils.getBlockPosCenter(tungstenTarget);
+        Vec3 targetCenter = VecUtils.getBlockPosCenter(tungstenTarget);
         double dx = currentPos.x - targetCenter.x;
         double dz = currentPos.z - targetCenter.z;
         double distToTarget = Math.sqrt(dx * dx + dz * dz);

@@ -35,18 +35,18 @@ import baritone.utils.GodBridgeClickHelper;
 import com.google.common.collect.ImmutableSet;
 import java.util.Optional;
 import java.util.Set;
-import net.minecraft.block.AirBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.CarpetBlock;
-import net.minecraft.block.DoorBlock;
-import net.minecraft.block.FenceGateBlock;
-import net.minecraft.block.LadderBlock;
-import net.minecraft.block.SlabBlock;
-import net.minecraft.block.enums.SlabType;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CarpetBlock;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.LadderBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 public class MovementTraverse extends Movement {
 
@@ -62,7 +62,7 @@ public class MovementTraverse extends Movement {
     private int godVerifyTicks = 0;
 
     public MovementTraverse(IBaritone baritone, BetterBlockPos from, BetterBlockPos to) {
-        super(baritone, from, to, new BetterBlockPos[]{to.up(), to}, to.down());
+        super(baritone, from, to, new BetterBlockPos[]{to.above(), to}, to.below());
     }
 
     @Override
@@ -76,7 +76,7 @@ public class MovementTraverse extends Movement {
 
     @Override
     public double calculateCost(CalculationContext context) {
-        return cost(context, src.x, src.y, src.z, dest.x, dest.z);
+        return cost(context, src.x(), src.y, src.z(), dest.x(), dest.z());
     }
 
     @Override
@@ -150,9 +150,9 @@ public class MovementTraverse extends Movement {
                 double hardness2 = MovementHelper.getMiningDurationTicks(context, destX, y + 1, destZ, pb0, true); // only include falling on the upper block to break
                 double WC = throughWater ? context.waterWalkSpeed : WALK_ONE_BLOCK_COST;
                 for (int i = 0; i < 5; i++) {
-                    int againstX = destX + HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i].getOffsetX();
-                    int againstY = y - 1 + HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i].getOffsetY();
-                    int againstZ = destZ + HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i].getOffsetZ();
+                    int againstX = destX + HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i].getStepX();
+                    int againstY = y - 1 + HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i].getStepY();
+                    int againstZ = destZ + HORIZONTALS_BUT_ALSO_DOWN_____SO_EVERY_DIRECTION_EXCEPT_UP[i].getStepZ();
                     if (againstX == x && againstZ == z) { // this would be a backplace
                         continue;
                     }
@@ -161,7 +161,7 @@ public class MovementTraverse extends Movement {
                     }
                 }
                 // now that we've checked all possible directions to side place, we actually need to backplace
-                if (srcDownBlock == Blocks.SOUL_SAND || (srcDownBlock instanceof SlabBlock && srcDown.get(SlabBlock.TYPE) != SlabType.DOUBLE)) {
+                if (srcDownBlock == Blocks.SOUL_SAND || (srcDownBlock instanceof SlabBlock && srcDown.getValue(SlabBlock.TYPE) != SlabType.DOUBLE)) {
                     return COST_INF; // can't sneak and backplace against soul sand or half slabs (regardless of whether it's top half or bottom half) =/
                 }
                 if (!standingOnABlock) { // standing on water / swimming
@@ -203,7 +203,7 @@ public class MovementTraverse extends Movement {
                 return state;
             }
             // and we aren't already pressed up against the block
-            double dist = Math.max(Math.abs(ctx.player().getEntityPos().x - (dest.getX() + 0.5D)), Math.abs(ctx.player().getEntityPos().z - (dest.getZ() + 0.5D)));
+            double dist = Math.max(Math.abs(ctx.player().position().x - (dest.getX() + 0.5D)), Math.abs(ctx.player().position().z - (dest.getZ() + 0.5D)));
             if (dist < 0.83) {
                 return state;
             }
@@ -214,8 +214,8 @@ public class MovementTraverse extends Movement {
 
             // combine the yaw to the center of the destination, and the pitch to the specific block we're trying to break
             // it's safe to do this since the two blocks we break (in a traverse) are right on top of each other and so will have the same yaw
-            float yawToDest = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), VecUtils.calculateBlockCenter(ctx.world(), dest), ctx.playerRotations()).getYaw();
-            float pitchToBreak = state.getTarget().getRotation().get().getPitch();
+            float yawToDest = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), VecUtils.calculateBlockCenter(ctx.world(), dest), ctx.playerRotations()).getYRot();
+            float pitchToBreak = state.getTarget().getRotation().get().getXRot();
             if ((MovementHelper.isBlockNormalCube(pb0) || pb0.getBlock() instanceof AirBlock && (MovementHelper.isBlockNormalCube(pb1) || pb1.getBlock() instanceof AirBlock))) {
                 // in the meantime, before we're right up against the block, we can break efficiently at this angle
                 pitchToBreak = 26;
@@ -229,7 +229,7 @@ public class MovementTraverse extends Movement {
         //sneak may have been set to true in the PREPPING state while mining an adjacent block
         state.setInput(Input.SNEAK, false);
 
-        Block fd = BlockStateInterface.get(ctx, src.down()).getBlock();
+        Block fd = BlockStateInterface.get(ctx, src.below()).getBlock();
         boolean ladder = fd == Blocks.LADDER || fd == Blocks.VINE;
 
         if (pb0.getBlock() instanceof DoorBlock || pb1.getBlock() instanceof DoorBlock) {
@@ -243,7 +243,7 @@ public class MovementTraverse extends Movement {
         }
 
         if (pb0.getBlock() instanceof FenceGateBlock || pb1.getBlock() instanceof FenceGateBlock) {
-            BlockPos blocked = !MovementHelper.isGatePassable(ctx, positionsToBreak[0], src.up()) ? positionsToBreak[0]
+            BlockPos blocked = !MovementHelper.isGatePassable(ctx, positionsToBreak[0], src.above()) ? positionsToBreak[0]
                     : !MovementHelper.isGatePassable(ctx, positionsToBreak[1], src) ? positionsToBreak[1]
                     : null;
             if (blocked != null) {
@@ -273,23 +273,23 @@ public class MovementTraverse extends Movement {
                 return state.setStatus(MovementStatus.SUCCESS);
             }
             Block low = BlockStateInterface.get(ctx, src).getBlock();
-            Block high = BlockStateInterface.get(ctx, src.up()).getBlock();
-            if (ctx.player().getEntityPos().y > src.y + 0.1D && !ctx.player().isOnGround() && (low == Blocks.VINE || low == Blocks.LADDER || high == Blocks.VINE || high == Blocks.LADDER)) {
+            Block high = BlockStateInterface.get(ctx, src.above()).getBlock();
+            if (ctx.player().position().y > src.y + 0.1D && !ctx.player().onGround() && (low == Blocks.VINE || low == Blocks.LADDER || high == Blocks.VINE || high == Blocks.LADDER)) {
                 // hitting W could cause us to climb the ladder instead of going forward
                 // wait until we're on the ground
                 return state;
             }
-            BlockPos into = dest.subtract(src).add(dest);
+            BlockPos into = dest.offset(dest.subtract(src));
             BlockState intoBelow = BlockStateInterface.get(ctx, into);
-            BlockState intoAbove = BlockStateInterface.get(ctx, into.up());
+            BlockState intoAbove = BlockStateInterface.get(ctx, into.above());
             if (wasTheBridgeBlockAlwaysThere && (!MovementHelper.isLiquid(ctx, feet) || Baritone.settings().sprintInWater.value) && (!MovementHelper.avoidWalkingInto(intoBelow) || MovementHelper.isWater(intoBelow)) && !MovementHelper.avoidWalkingInto(intoAbove)) {
                 state.setInput(Input.SPRINT, true);
             }
 
-            BlockState destDown = BlockStateInterface.get(ctx, dest.down());
+            BlockState destDown = BlockStateInterface.get(ctx, dest.below());
             BlockPos against = positionsToBreak[0];
             if (feet.getY() != dest.getY() && ladder && (destDown.getBlock() == Blocks.VINE || destDown.getBlock() == Blocks.LADDER)) {
-                against = destDown.getBlock() == Blocks.VINE ? MovementPillar.getAgainst(new CalculationContext(baritone), dest.down()) : dest.offset(destDown.get(LadderBlock.FACING).getOpposite());
+                against = destDown.getBlock() == Blocks.VINE ? MovementPillar.getAgainst(new CalculationContext(baritone), dest.below()) : dest.add(destDown.getValue(LadderBlock.FACING).getOpposite());
                 if (against == null) {
                     logDirect("Unable to climb vines. Consider disabling allowVines.");
                     return state.setStatus(MovementStatus.UNREACHABLE);
@@ -299,9 +299,9 @@ public class MovementTraverse extends Movement {
             return state;
         } else {
             wasTheBridgeBlockAlwaysThere = false;
-            Block standingOn = BlockStateInterface.get(ctx, feet.down()).getBlock();
+            Block standingOn = BlockStateInterface.get(ctx, feet.below()).getBlock();
             if ((standingOn.equals(Blocks.SOUL_SAND) && !AltoClefSettings.getInstance().shouldTreatSoulSandAsOrdinaryBlock()) || standingOn instanceof SlabBlock) { // see issue #118
-                double dist = Math.max(Math.abs(dest.getX() + 0.5 - ctx.player().getEntityPos().x), Math.abs(dest.getZ() + 0.5 - ctx.player().getEntityPos().z));
+                double dist = Math.max(Math.abs(dest.getX() + 0.5 - ctx.player().position().x()), Math.abs(dest.getZ() + 0.5 - ctx.player().position().z()));
                 if (dist < 0.85) { // 0.5 + 0.3 + epsilon
                     MovementHelper.moveTowards(ctx, state, dest);
                     return state.setInput(Input.MOVE_FORWARD, false)
@@ -317,14 +317,14 @@ public class MovementTraverse extends Movement {
                 return updateSlowBridge(state, feet);
             }
 
-            double dist1 = Math.max(Math.abs(ctx.player().getEntityPos().x - (dest.getX() + 0.5D)), Math.abs(ctx.player().getEntityPos().z - (dest.getZ() + 0.5D)));
-            PlaceResult p = MovementHelper.attemptToPlaceABlock(state, baritone, dest.down(), false, true);
+            double dist1 = Math.max(Math.abs(ctx.player().position().x - (dest.getX() + 0.5D)), Math.abs(ctx.player().position().z - (dest.getZ() + 0.5D)));
+            PlaceResult p = MovementHelper.attemptToPlaceABlock(state, baritone, dest.below(), false, true);
             if ((p == PlaceResult.READY_TO_PLACE || dist1 < 0.6) && !Baritone.settings().assumeSafeWalk.value) {
                 state.setInput(Input.SNEAK, true);
             }
             switch (p) {
                 case READY_TO_PLACE: {
-                    if (ctx.player().isInSneakingPose() || Baritone.settings().assumeSafeWalk.value) {
+                    if (ctx.player().isCrouching() || Baritone.settings().assumeSafeWalk.value) {
                         state.setInput(Input.CLICK_RIGHT, true);
                     }
                     return state;
@@ -332,8 +332,8 @@ public class MovementTraverse extends Movement {
                 case ATTEMPTING: {
                     if (dist1 > 0.83) {
                         // might need to go forward a bit
-                        float yaw = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), VecUtils.getBlockPosCenter(dest), ctx.playerRotations()).getYaw();
-                        if (Math.abs(state.getTarget().rotation.getYaw() - yaw) < 0.1) {
+                        float yaw = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), VecUtils.getBlockPosCenter(dest), ctx.playerRotations()).getYRot();
+                        if (Math.abs(state.getTarget().rotation.getYRot() - yaw) < 0.1) {
                             // but only if our attempted place is straight ahead
                             return state.setInput(Input.MOVE_FORWARD, true);
                         }
@@ -351,13 +351,13 @@ public class MovementTraverse extends Movement {
                 double faceX = (dest.getX() + src.getX() + 1.0D) * 0.5D;
                 double faceY = (dest.getY() + src.getY() - 1.0D) * 0.5D;
                 double faceZ = (dest.getZ() + src.getZ() + 1.0D) * 0.5D;
-                BlockPos goalLook = src.down();
+                BlockPos goalLook = src.below();
 
-                Rotation backToFace = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), new Vec3d(faceX, faceY, faceZ), ctx.playerRotations());
-                float pitch = backToFace.getPitch();
-                double dist2 = Math.max(Math.abs(ctx.player().getEntityPos().x - faceX), Math.abs(ctx.player().getEntityPos().z - faceZ));
+                Rotation backToFace = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), new Vec3(faceX, faceY, faceZ), ctx.playerRotations());
+                float pitch = backToFace.getXRot();
+                double dist2 = Math.max(Math.abs(ctx.player().position().x - faceX), Math.abs(ctx.player().position().z - faceZ));
                 if (dist2 < 0.29) {
-                    float yaw = RotationUtils.calcRotationFromVec3d(VecUtils.getBlockPosCenter(dest), ctx.playerHead(), ctx.playerRotations()).getYaw();
+                    float yaw = RotationUtils.calcRotationFromVec3d(VecUtils.getBlockPosCenter(dest), ctx.playerHead(), ctx.playerRotations()).getYRot();
                     state.setTarget(new MovementState.MovementTarget(new Rotation(yaw, pitch), true));
                     state.setInput(Input.MOVE_BACK, true);
                 } else {
@@ -383,12 +383,12 @@ public class MovementTraverse extends Movement {
      * 1. WALK: look backward (-dir, pitch 80°), MOVE_BACK (= moves toward dest).
      *    Sneak prevents falling off edge.
      * 2. PLACE: at the edge (distToEdge < 0.4), face is now behind us.
-     *    Aim precisely at the +dir face of src.down(), click when raycast hits.
+     *    Aim precisely at the +dir face of src.below(), click when raycast hits.
      */
     private MovementState updateSlowBridge(MovementState state, BlockPos feet) {
         boolean godMode = "god".equals(Baritone.settings().bridgingMode.value);
 
-        boolean blockPlaced = MovementHelper.canWalkOn(ctx, dest.down());
+        boolean blockPlaced = MovementHelper.canWalkOn(ctx, dest.below());
 
         // Bridge block placed
         if (blockPlaced) {
@@ -428,16 +428,16 @@ public class MovementTraverse extends Movement {
         int dirZ = dest.getZ() - src.getZ();
         float backwardYaw = (float) Math.toDegrees(Math.atan2(-dirX, dirZ)) + 180.0f;
 
-        // Face behind us: the +dir face of src.down()
+        // Face behind us: the +dir face of src.below()
         double faceX = (dest.getX() + src.getX() + 1.0D) * 0.5D;
         double faceY = (dest.getY() + src.getY() - 1.0D) * 0.5D;
         double faceZ = (dest.getZ() + src.getZ() + 1.0D) * 0.5D;
         Rotation faceLook = RotationUtils.calcRotationFromVec3d(
-                ctx.playerHead(), new Vec3d(faceX, faceY, faceZ), ctx.playerRotations());
+                ctx.playerHead(), new Vec3(faceX, faceY, faceZ), ctx.playerRotations());
 
         if (godMode) {
             // Fell off — abort god bridge state immediately so PathExecutor can handle it
-            if (ctx.player().getEntityPos().y < src.getY() - 0.5) {
+            if (ctx.player().position().y < src.getY() - 0.5) {
                 stopGodBridge();
                 godSneakFallbackTicks = 0;
                 godVerifyTicks = 0;
@@ -445,8 +445,8 @@ public class MovementTraverse extends Movement {
             }
 
             double distToEdge = Math.max(
-                    Math.abs(ctx.player().getEntityPos().x - (dest.getX() + 0.5D)),
-                    Math.abs(ctx.player().getEntityPos().z - (dest.getZ() + 0.5D)));
+                    Math.abs(ctx.player().position().x - (dest.getX() + 0.5D)),
+                    Math.abs(ctx.player().position().z - (dest.getZ() + 0.5D)));
 
             double edgeDist = Baritone.settings().godBridgeEdgeDistance.value;
             // Emergency sneak triggered — fallback to slow mode for 8 ticks to bleed off momentum
@@ -460,13 +460,13 @@ public class MovementTraverse extends Movement {
                 // Slow-mode fallback: sneak, aim at face, click when raycast hits
                 state.setInput(Input.SNEAK, true);
                 state.setTarget(new MovementState.MovementTarget(faceLook, true));
-                if (ctx.isLookingAt(src.down())) {
+                if (ctx.isLookingAt(src.below())) {
                     if (((Baritone) baritone).getInventoryBehavior().selectThrowawayForLocation(true, dest.getX(), dest.getY() - 1, dest.getZ())) {
                         state.setInput(Input.CLICK_RIGHT, true);
                     }
                 }
                 // If fallback just expired, verify block was placed before continuing
-                if (godSneakFallbackTicks == 0 && !MovementHelper.canWalkOn(ctx, dest.down())) {
+                if (godSneakFallbackTicks == 0 && !MovementHelper.canWalkOn(ctx, dest.below())) {
                     return state.setStatus(MovementStatus.FAILED);
                 }
                 return state;
@@ -490,14 +490,14 @@ public class MovementTraverse extends Movement {
         }
 
         double distToEdge = Math.max(
-                Math.abs(ctx.player().getEntityPos().x - (dest.getX() + 0.5D)),
-                Math.abs(ctx.player().getEntityPos().z - (dest.getZ() + 0.5D)));
+                Math.abs(ctx.player().position().x - (dest.getX() + 0.5D)),
+                Math.abs(ctx.player().position().z - (dest.getZ() + 0.5D)));
 
         if (distToEdge < 0.4) {
-            // PLACE: at/past edge — the +dir face of src.down() is behind us.
+            // PLACE: at/past edge — the +dir face of src.below() is behind us.
             state.setTarget(new MovementState.MovementTarget(faceLook, true));
 
-            if (ctx.isLookingAt(src.down())) {
+            if (ctx.isLookingAt(src.below())) {
                 if (((Baritone) baritone).getInventoryBehavior().selectThrowawayForLocation(true, dest.getX(), dest.getY() - 1, dest.getZ())) {
                     state.setInput(Input.CLICK_RIGHT, true);
                 }
@@ -522,13 +522,13 @@ public class MovementTraverse extends Movement {
         // if we're in the process of breaking blocks before walking forwards
         // or if this isn't a sneak place (the block is already there)
         // then it's safe to cancel this
-        return state.getStatus() != MovementStatus.RUNNING || MovementHelper.canWalkOn(ctx, dest.down());
+        return state.getStatus() != MovementStatus.RUNNING || MovementHelper.canWalkOn(ctx, dest.below());
     }
 
     @Override
     protected boolean prepared(MovementState state) {
-        if (ctx.playerFeet().equals(src) || ctx.playerFeet().equals(src.down())) {
-            Block block = BlockStateInterface.getBlock(ctx, src.down());
+        if (ctx.playerFeet().equals(src) || ctx.playerFeet().equals(src.below())) {
+            Block block = BlockStateInterface.getBlock(ctx, src.below());
             if (block == Blocks.LADDER || block == Blocks.VINE) {
                 state.setInput(Input.SNEAK, true);
             }

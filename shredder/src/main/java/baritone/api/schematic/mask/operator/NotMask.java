@@ -20,7 +20,7 @@ package baritone.api.schematic.mask.operator;
 import baritone.api.schematic.mask.AbstractMask;
 import baritone.api.schematic.mask.Mask;
 import baritone.api.schematic.mask.StaticMask;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * @author Brady

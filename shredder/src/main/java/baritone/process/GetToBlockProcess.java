@@ -31,11 +31,11 @@ import baritone.pathing.movement.CalculationContext;
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.BaritoneProcessHelper;
 import java.util.*;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.screen.PlayerScreenHandler;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.core.BlockPos;
 
 public final class GetToBlockProcess extends BaritoneProcessHelper implements IGetToBlockProcess {
 
@@ -202,8 +202,8 @@ public final class GetToBlockProcess extends BaritoneProcessHelper implements IG
         if (walkIntoInsteadOfAdjacent(gettingTo.getBlock())) {
             return new GoalTwoBlocks(pos);
         }
-        if (blockOnTopMustBeRemoved(gettingTo.getBlock()) && MovementHelper.isBlockNormalCube(baritone.bsi.get0(pos.up()))) { // TODO this should be the check for chest openability
-            return new GoalBlock(pos.up());
+        if (blockOnTopMustBeRemoved(gettingTo.getBlock()) && MovementHelper.isBlockNormalCube(baritone.bsi.get0(pos.above()))) { // TODO this should be the check for chest openability
+            return new GoalBlock(pos.above());
         }
         return new GoalGetToBlock(pos);
     }
@@ -215,8 +215,8 @@ public final class GetToBlockProcess extends BaritoneProcessHelper implements IG
                 baritone.getLookBehavior().updateTarget(reachable.get(), true);
                 if (knownLocations.contains(ctx.getSelectedBlock().orElse(null))) {
                     baritone.getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, true); // TODO find some way to right click even if we're in an ESC menu
-                    System.out.println(ctx.player().currentScreenHandler);
-                    if (!(ctx.player().currentScreenHandler instanceof PlayerScreenHandler)) {
+                    System.out.println(ctx.player().containerMenu);
+                    if (!(ctx.player().containerMenu instanceof InventoryMenu)) {
                         return true;
                     }
                 }

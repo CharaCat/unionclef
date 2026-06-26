@@ -21,9 +21,9 @@ import baritone.api.command.exception.CommandException;
 import baritone.api.command.helpers.TabCompleteHelper;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import net.minecraft.block.Block;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 
 public enum BlockById implements IDatatypeFor<Block> {
     INSTANCE;
@@ -35,9 +35,9 @@ public enum BlockById implements IDatatypeFor<Block> {
 
     @Override
     public Block get(IDatatypeContext ctx) throws CommandException {
-        Identifier id = Identifier.of(ctx.getConsumer().getString());
+        Identifier id = Identifier.parse(ctx.getConsumer().getString());
         Block block;
-        if ((block = Registries.BLOCK.getOptionalValue(id).orElse(null)) == null) {
+        if ((block = BuiltInRegistries.BLOCK.getOptional(id).orElse(null)) == null) {
             throw new IllegalArgumentException("no block found by that id");
         }
         return block;
@@ -53,7 +53,7 @@ public enum BlockById implements IDatatypeFor<Block> {
 
         return new TabCompleteHelper()
                 .append(
-                        Registries.BLOCK.getIds()
+                        BuiltInRegistries.BLOCK.keySet()
                                 .stream()
                                 .map(Object::toString)
                 )

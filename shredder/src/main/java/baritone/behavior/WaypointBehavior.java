@@ -25,14 +25,14 @@ import baritone.api.utils.BetterBlockPos;
 import baritone.api.utils.Helper;
 import baritone.utils.BlockStateInterface;
 import java.util.Set;
-import net.minecraft.block.BedBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.enums.BedPart;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import static baritone.api.command.IBaritoneChatControl.FORCE_COMMAND_PREFIX;
 
@@ -51,8 +51,8 @@ public class WaypointBehavior extends Behavior {
             BetterBlockPos pos = BetterBlockPos.from(event.getPos());
             BlockState state = BlockStateInterface.get(ctx, pos);
             if (state.getBlock() instanceof BedBlock) {
-                if (state.get(BedBlock.PART) == BedPart.FOOT) {
-                    pos = pos.offset(state.get(BedBlock.FACING));
+                if (state.getValue(BedBlock.PART) == BedPart.FOOT) {
+                    pos = pos.add(state.getValue(BedBlock.FACING));
                 }
                 Set<IWaypoint> waypoints = baritone.getWorldProvider().getCurrentWorld().getWaypoints().getByTag(IWaypoint.Tag.BED);
                 boolean exists = waypoints.stream().map(IWaypoint::getLocation).filter(pos::equals).findFirst().isPresent();
@@ -69,11 +69,11 @@ public class WaypointBehavior extends Behavior {
             return;
         Waypoint deathWaypoint = new Waypoint("death", Waypoint.Tag.DEATH, ctx.playerFeet());
         baritone.getWorldProvider().getCurrentWorld().getWaypoints().addWaypoint(deathWaypoint);
-        MutableText component = Text.literal("Death position saved.");
+        MutableComponent component = Component.literal("Death position saved.");
         component.setStyle(component.getStyle()
-                .withColor(Formatting.WHITE)
+                .withColor(ChatFormatting.WHITE)
                 .withHoverEvent(new HoverEvent.ShowText(
-                        Text.literal("Click to goto death")
+                        Component.literal("Click to goto death")
                 ))
                 .withClickEvent(new ClickEvent.RunCommand(
                         String.format(

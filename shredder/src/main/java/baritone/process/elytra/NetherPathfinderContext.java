@@ -28,22 +28,22 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.util.collection.PaletteStorage;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.chunk.ChunkSection;
-import net.minecraft.world.chunk.PalettedContainer;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.util.BitStorage;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 /**
  * @author Brady
  */
 public final class NetherPathfinderContext {
 
-    private static final BlockState AIR_BLOCK_STATE = Blocks.AIR.getDefaultState();
+    private static final BlockState AIR_BLOCK_STATE = Blocks.AIR.defaultBlockState();
     // This lock must be held while there are active pointers to chunks in java,
     // but we just hold it for the entire tick so we don't have to think much about it.
     public final Object cullingLock = new Object();
@@ -60,7 +60,7 @@ public final class NetherPathfinderContext {
     }
 
     public boolean hasChunk(ChunkPos pos) {
-        return NetherPathfinder.hasChunkFromJava(this.context, pos.x, pos.z);
+        return NetherPathfinder.hasChunkFromJava(this.context, pos.x(), pos.z());
     }
 
     public void queueCacheCulling(int chunkX, int chunkZ, int maxDistanceBlocks, BlockStateOctreeInterface boi) {
@@ -72,14 +72,14 @@ public final class NetherPathfinderContext {
         });
     }
 
-    public void queueForPacking(final WorldChunk chunkIn) {
-        final SoftReference<WorldChunk> ref = new SoftReference<>(chunkIn);
+    public void queueForPacking(final LevelChunk chunkIn) {
+        final SoftReference<LevelChunk> ref = new SoftReference<>(chunkIn);
         this.executor.execute(() -> {
             // TODO: Prioritize packing recent chunks and/or ones that the path goes through,
             //       and prune the oldest chunks per chunkPackerQueueMaxSize
-            final WorldChunk chunk = ref.get();
+            final LevelChunk chunk = ref.get();
             if (chunk != null) {
-                long ptr = NetherPathfinder.getOrCreateChunk(this.context, chunk.getPos().x, chunk.getPos().z);
+                long ptr = NetherPathfinder.getOrCreateChunk(this.context, chunk.getPos().x(), chunk.getPos().z());
                 writeChunkData(chunk, ptr);
             }
         });
@@ -88,7 +88,7 @@ public final class NetherPathfinderContext {
     public void queueBlockUpdate(BlockChangeEvent event) {
         this.executor.execute(() -> {
             ChunkPos chunkPos = event.getChunkPos();
-            long ptr = NetherPathfinder.getChunkPointer(this.context, chunkPos.x, chunkPos.z);
+            long ptr = NetherPathfinder.getChunkPointer(this.context, chunkPos.x(), chunkPos.z());
             if (ptr == 0) return; // this shouldn't ever happen
             event.getBlocks().forEach(pair -> {
                 BlockPos pos = pair.first();
@@ -142,8 +142,8 @@ public final class NetherPathfinderContext {
      * @param end   The ending point
      * @return {@code true} if there is visibility between the points
      */
-    public boolean raytrace(final Vec3d start, final Vec3d end) {
-        return NetherPathfinder.isVisible(this.context, NetherPathfinder.CACHE_MISS_SOLID, start.x, start.y, start.z, end.x, end.y, end.z);
+    public boolean raytrace(final Vec3 start, final Vec3 end) {
+        return NetherPathfinder.isVisible(this.context, NetherPathfinder.CACHE_MISS_SOLID, start.x(), start.y, start.z(), end.x(), end.y, end.z());
     }
 
     public boolean raytrace(final int count, final double[] src, final double[] dst, final int visibility) {
@@ -185,22 +185,22 @@ public final class NetherPathfinderContext {
         return this.seed;
     }
 
-    private static void writeChunkData(WorldChunk chunk, long ptr) {
+    private static void writeChunkData(LevelChunk chunk, long ptr) {
         try {
-            ChunkSection[] chunkInternalStorageArray = chunk.getSectionArray();
+            LevelChunkSection[] chunkInternalStorageArray = chunk.getSections();
             for (int y0 = 0; y0 < 8; y0++) {
-                final ChunkSection extendedblockstorage = chunkInternalStorageArray[y0];
+                final LevelChunkSection extendedblockstorage = chunkInternalStorageArray[y0];
                 if (extendedblockstorage == null) {
                     continue;
                 }
-                final PalettedContainer<BlockState> bsc = extendedblockstorage.getBlockStateContainer();
-                final int airId = ((IPalettedContainer<BlockState>) bsc).getPalette().index(AIR_BLOCK_STATE, (newSize, prevPalette) -> 0);
+                final PalettedContainer<BlockState> bsc = extendedblockstorage.getStates();
+                final int airId = ((IPalettedContainer<BlockState>) bsc).getPalette().idFor(AIR_BLOCK_STATE, (newSize, prevPalette) -> 0);
                 // pasted from FasterWorldScanner
-                final PaletteStorage array = ((IPalettedContainer<BlockState>) bsc).getStorage();
+                final BitStorage array = ((IPalettedContainer<BlockState>) bsc).getStorage();
                 if (array == null) continue;
-                final long[] longArray = array.getData();
+                final long[] longArray = array.getRaw();
                 final int arraySize = array.getSize();
-                int bitsPerEntry = array.getElementBits();
+                int bitsPerEntry = array.getBits();
                 long maxEntryValue = (1L << bitsPerEntry) - 1L;
 
                 final int yReal = y0 << 4;

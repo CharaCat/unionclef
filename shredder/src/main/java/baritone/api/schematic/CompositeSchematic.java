@@ -19,7 +19,7 @@ package baritone.api.schematic;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class CompositeSchematic extends AbstractSchematic {
 
@@ -49,7 +49,7 @@ public class CompositeSchematic extends AbstractSchematic {
     private CompositeSchematicEntry getSchematic(int x, int y, int z, BlockState currentState) {
         for (CompositeSchematicEntry entry : schematicArr) {
             if (x >= entry.x && y >= entry.y && z >= entry.z &&
-                    entry.schematic.inSchematic(x - entry.x, y - entry.y, z - entry.z, currentState)) {
+                    entry.schematic.inSchematic(x - entry.x(), y - entry.y, z - entry.z(), currentState)) {
                 return entry;
             }
         }
@@ -59,7 +59,7 @@ public class CompositeSchematic extends AbstractSchematic {
     @Override
     public boolean inSchematic(int x, int y, int z, BlockState currentState) {
         CompositeSchematicEntry entry = getSchematic(x, y, z, currentState);
-        return entry != null && entry.schematic.inSchematic(x - entry.x, y - entry.y, z - entry.z, currentState);
+        return entry != null && entry.schematic.inSchematic(x - entry.x(), y - entry.y, z - entry.z(), currentState);
     }
 
     @Override
@@ -68,7 +68,7 @@ public class CompositeSchematic extends AbstractSchematic {
         if (entry == null) {
             throw new IllegalStateException("couldn't find schematic for this position");
         }
-        return entry.schematic.desiredState(x - entry.x, y - entry.y, z - entry.z, current, approxPlaceable);
+        return entry.schematic.desiredState(x - entry.x(), y - entry.y, z - entry.z(), current, approxPlaceable);
     }
 
     @Override

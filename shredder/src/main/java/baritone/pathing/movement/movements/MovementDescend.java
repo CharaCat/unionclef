@@ -31,12 +31,12 @@ import baritone.utils.BlockStateInterface;
 import baritone.utils.pathing.MutableMoveResult;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.FallingBlock;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FallingBlock;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 public class MovementDescend extends Movement {
 
@@ -44,7 +44,7 @@ public class MovementDescend extends Movement {
     public boolean forceSafeMode = false;
 
     public MovementDescend(IBaritone baritone, BetterBlockPos start, BetterBlockPos end) {
-        super(baritone, start, end, new BetterBlockPos[]{end.up(2), end.up(), end}, end.down());
+        super(baritone, start, end, new BetterBlockPos[]{end.above(2), end.above(), end}, end.below());
     }
 
     @Override
@@ -64,7 +64,7 @@ public class MovementDescend extends Movement {
     @Override
     public double calculateCost(CalculationContext context) {
         MutableMoveResult result = new MutableMoveResult();
-        cost(context, src.x, src.y, src.z, dest.x, dest.z, result);
+        cost(context, src.x(), src.y, src.z(), dest.x(), dest.z(), result);
         if (result.y != dest.y) {
             return COST_INF; // doesn't apply to us, this position is a fall not a descend
         }
@@ -73,7 +73,7 @@ public class MovementDescend extends Movement {
 
     @Override
     protected Set<BetterBlockPos> calculateValidPositions() {
-        return ImmutableSet.of(src, dest.up(), dest);
+        return ImmutableSet.of(src, dest.above(), dest);
     }
 
     public static void cost(CalculationContext context, int x, int y, int z, int destX, int destZ, MutableMoveResult res) {
@@ -203,7 +203,7 @@ public class MovementDescend extends Movement {
                 return false; // falling onto a half slab is really glitchy, and can cause more fall damage than we'd expect
             }
             if (reachedMinimum && unprotectedFallHeight <= context.maxFallHeightNoWater + 1) {
-                // fallHeight = 4 means onto.up() is 3 blocks down, which is the max
+                // fallHeight = 4 means onto.above() is 3 blocks down, which is the max
                 res.x = destX;
                 res.y = newY + 1;
                 res.z = destZ;
@@ -231,7 +231,7 @@ public class MovementDescend extends Movement {
 
         BlockPos playerFeet = ctx.playerFeet();
         BlockPos fakeDest = new BlockPos(dest.getX() * 2 - src.getX(), dest.getY(), dest.getZ() * 2 - src.getZ());
-        if ((playerFeet.equals(dest) || playerFeet.equals(fakeDest)) && (MovementHelper.isLiquid(ctx, dest) || ctx.player().getEntityPos().y - dest.getY() < 0.5)) { // lilypads
+        if ((playerFeet.equals(dest) || playerFeet.equals(fakeDest)) && (MovementHelper.isLiquid(ctx, dest) || ctx.player().position().y - dest.getY() < 0.5)) { // lilypads
             // Wait until we're actually on the ground before saying we're done because sometimes we continue to fall if the next action starts immediately
             return state.setStatus(MovementStatus.SUCCESS);
             /* else {
@@ -243,17 +243,17 @@ public class MovementDescend extends Movement {
             double destZ = (src.getZ() + 0.5) * 0.17 + (dest.getZ() + 0.5) * 0.83;
             state.setTarget(new MovementState.MovementTarget(
                     RotationUtils.calcRotationFromVec3d(ctx.playerHead(),
-                            new Vec3d(destX, dest.getY(), destZ),
-                            ctx.playerRotations()).withPitch(ctx.playerRotations().getPitch()),
+                            new Vec3(destX, dest.getY(), destZ),
+                            ctx.playerRotations()).withPitch(ctx.playerRotations().getXRot()),
                     false
             )).setInput(Input.MOVE_FORWARD, true);
             return state;
         }
-        double diffX = ctx.player().getEntityPos().x - (dest.getX() + 0.5);
-        double diffZ = ctx.player().getEntityPos().z - (dest.getZ() + 0.5);
+        double diffX = ctx.player().position().x - (dest.getX() + 0.5);
+        double diffZ = ctx.player().position().z - (dest.getZ() + 0.5);
         double ab = Math.sqrt(diffX * diffX + diffZ * diffZ);
-        double x = ctx.player().getEntityPos().x - (src.getX() + 0.5);
-        double z = ctx.player().getEntityPos().z - (src.getZ() + 0.5);
+        double x = ctx.player().position().x - (src.getX() + 0.5);
+        double z = ctx.player().position().z - (src.getZ() + 0.5);
         double fromStart = Math.sqrt(x * x + z * z);
         if (!playerFeet.equals(dest) || ab > 0.25) {
             if (numTicks++ < 20 && fromStart < 1.25) {
@@ -271,13 +271,13 @@ public class MovementDescend extends Movement {
         }
         // (dest - src) + dest is offset 1 more in the same direction
         // so it's the block we'd need to worry about running into if we decide to sprint straight through this descend
-        BlockPos into = dest.subtract(src.down()).add(dest);
+        BlockPos into = dest.offset(dest.subtract(src.below()));
         if (skipToAscend()) {
             // if dest extends into can't walk through, but the two above are can walk through, then we can overshoot and glitch in that weird way
             return true;
         }
         for (int y = 0; y <= 2; y++) { // we could hit any of the three blocks
-            BlockPos p = into.up(y);
+            BlockPos p = into.above(y);
             if (MovementHelper.avoidWalkingInto(BlockStateInterface.get(ctx, p))) {
                 return true;
             }
@@ -289,7 +289,7 @@ public class MovementDescend extends Movement {
     }
 
     public boolean skipToAscend() {
-        BlockPos into = dest.subtract(src.down()).add(dest);
-        return !MovementHelper.canWalkThrough(ctx, new BetterBlockPos(into)) && MovementHelper.canWalkThrough(ctx, new BetterBlockPos(into).up()) && MovementHelper.canWalkThrough(ctx, new BetterBlockPos(into).up(2));
+        BlockPos into = dest.offset(dest.subtract(src.below()));
+        return !MovementHelper.canWalkThrough(ctx, new BetterBlockPos(into)) && MovementHelper.canWalkThrough(ctx, new BetterBlockPos(into).above()) && MovementHelper.canWalkThrough(ctx, new BetterBlockPos(into).above(2));
     }
 }

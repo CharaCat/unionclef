@@ -26,10 +26,10 @@ import baritone.api.utils.input.Input;
 import baritone.behavior.PathingBehavior;
 import baritone.utils.BlockStateInterface;
 import java.util.*;
-import net.minecraft.entity.FallingBlockEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
+import net.minecraft.world.entity.item.FallingBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
 
 public abstract class Movement implements IMovement, MovementHelper {
 
@@ -123,10 +123,10 @@ public abstract class Movement implements IMovement, MovementHelper {
     public MovementStatus update() {
         ctx.player().getAbilities().flying = false;
         currentState = updateState(currentState);
-        if (MovementHelper.isLiquid(ctx, ctx.playerFeet()) && ctx.player().getEntityPos().y < dest.y + 0.6) {
+        if (MovementHelper.isLiquid(ctx, ctx.playerFeet()) && ctx.player().position().y < dest.y + 0.6) {
             currentState.setInput(Input.JUMP, true);
         }
-        if (ctx.player().isInsideWall()) {
+        if (ctx.player().isInWall()) {
             ctx.getSelectedBlock().ifPresent(pos -> MovementHelper.switchToBestToolFor(ctx, BlockStateInterface.get(ctx, pos)));
             currentState.setInput(Input.CLICK_LEFT, true);
         }
@@ -156,7 +156,7 @@ public abstract class Movement implements IMovement, MovementHelper {
         }
         boolean somethingInTheWay = false;
         for (BetterBlockPos blockPos : positionsToBreak) {
-            if (!ctx.world().getNonSpectatingEntities(FallingBlockEntity.class, new Box(0, 0, 0, 1, 1.1, 1).offset(blockPos)).isEmpty() && Baritone.settings().pauseMiningForFallingBlocks.value) {
+            if (!ctx.world().getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(FallingBlockEntity.class), new AABB(0, 0, 0, 1, 1.1, 1).move(blockPos), e -> true).isEmpty() && Baritone.settings().pauseMiningForFallingBlocks.value) {
                 return false;
             }
             if (!MovementHelper.canWalkThrough(ctx, blockPos)) { // can't break air, so don't try
@@ -242,7 +242,7 @@ public abstract class Movement implements IMovement, MovementHelper {
     }
 
     public void checkLoadedChunk(CalculationContext context) {
-        calculatedWhileLoaded = context.bsi.worldContainsLoadedChunk(dest.x, dest.z);
+        calculatedWhileLoaded = context.bsi.worldContainsLoadedChunk(dest.x(), dest.z());
     }
 
     @Override
@@ -263,7 +263,7 @@ public abstract class Movement implements IMovement, MovementHelper {
         }
         List<BlockPos> result = new ArrayList<>();
         for (BetterBlockPos positionToBreak : positionsToBreak) {
-            if (!MovementHelper.canWalkThrough(bsi, positionToBreak.x, positionToBreak.y, positionToBreak.z)) {
+            if (!MovementHelper.canWalkThrough(bsi, positionToBreak.x(), positionToBreak.y, positionToBreak.z())) {
                 result.add(positionToBreak);
             }
         }
@@ -276,7 +276,7 @@ public abstract class Movement implements IMovement, MovementHelper {
             return toPlaceCached;
         }
         List<BlockPos> result = new ArrayList<>();
-        if (positionToPlace != null && !MovementHelper.canWalkOn(bsi, positionToPlace.x, positionToPlace.y, positionToPlace.z)) {
+        if (positionToPlace != null && !MovementHelper.canWalkOn(bsi, positionToPlace.x(), positionToPlace.y, positionToPlace.z())) {
             result.add(positionToPlace);
         }
         toPlaceCached = result;

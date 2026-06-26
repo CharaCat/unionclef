@@ -50,7 +50,7 @@ public class TestBridgingCommand extends Command {
         // GoalBlock forces horizontal bridging at the current height.
         GoalXZ xzGoal = GoalXZ.fromDirection(
                 ctx.playerFeetAsVec(),
-                ctx.player().getHeadYaw(),
+                ctx.player().getYRot(),
                 distance
         );
         int playerY = ctx.playerFeet().getY();

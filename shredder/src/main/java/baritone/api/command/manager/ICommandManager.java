@@ -23,7 +23,7 @@ import baritone.api.command.argument.ICommandArgument;
 import baritone.api.command.registry.Registry;
 import java.util.List;
 import java.util.stream.Stream;
-import net.minecraft.util.Pair;
+import com.mojang.datafixers.util.Pair;
 
 /**
  * @author Brady

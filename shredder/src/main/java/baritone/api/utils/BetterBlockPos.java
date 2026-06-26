@@ -18,10 +18,11 @@
 package baritone.api.utils;
 
 import javax.annotation.Nonnull;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
+import net.minecraft.core.Vec3i;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * A better BlockPos that has fewer hash collisions (and slightly more performant offsets)
@@ -57,7 +58,7 @@ public final class BetterBlockPos extends BlockPos {
     }
 
     public BetterBlockPos(double x, double y, double z) {
-        this(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
+        this(Mth.floor(x), Mth.floor(y), Mth.floor(z));
     }
 
     public BetterBlockPos(BlockPos pos) {
@@ -78,13 +79,29 @@ public final class BetterBlockPos extends BlockPos {
         return new BetterBlockPos(pos);
     }
 
+    public double getSquaredDistance(BlockPos pos) {
+        return this.distSqr(pos);
+    }
+
+    public int x() {
+        return x;
+    }
+
+    public int y() {
+        return y;
+    }
+
+    public int z() {
+        return z;
+    }
+
     @Override
     public int hashCode() {
         return (int) longHash(x, y, z);
     }
 
     public static long longHash(BetterBlockPos pos) {
-        return longHash(pos.x, pos.y, pos.z);
+        return longHash(pos.x(), pos.y, pos.z());
     }
 
     public static long longHash(int x, int y, int z) {
@@ -123,12 +140,11 @@ public final class BetterBlockPos extends BlockPos {
         return oth.getX() == x && oth.getY() == y && oth.getZ() == z;
     }
 
-    @Override
     public BetterBlockPos up() {
         // this is unimaginably faster than blockpos.up
         // that literally calls
-        // this.up(1)
-        // which calls this.offset(Direction.UP, 1)
+        // this.above(1)
+        // which calls this.add(Direction.UP, 1)
         // which does return n == 0 ? this : new BlockPos(this.getX() + facing.getXOffset() * n, this.getY() + facing.getYOffset() * n, this.getZ() + facing.getZOffset() * n);
 
         // how many function calls is that? up(), up(int), offset(Direction, int), new BlockPos, getX, getXOffset, getY, getYOffset, getZ, getZOffset
@@ -137,37 +153,78 @@ public final class BetterBlockPos extends BlockPos {
         return new BetterBlockPos(x, y + 1, z);
     }
 
-    @Override
     public BetterBlockPos up(int amt) {
         // see comment in up()
         return amt == 0 ? this : new BetterBlockPos(x, y + amt, z);
     }
 
-    @Override
     public BetterBlockPos down() {
         // see comment in up()
         return new BetterBlockPos(x, y - 1, z);
     }
 
-    @Override
     public BetterBlockPos down(int amt) {
         // see comment in up()
         return amt == 0 ? this : new BetterBlockPos(x, y - amt, z);
     }
 
     @Override
-    public BetterBlockPos offset(Direction dir) {
-        Vec3i vec = dir.getVector();
-        return new BetterBlockPos(x + vec.getX(), y + vec.getY(), z + vec.getZ());
+    public BetterBlockPos above() {
+        return up();
     }
 
     @Override
+    public BetterBlockPos above(int amt) {
+        return up(amt);
+    }
+
+    @Override
+    public BetterBlockPos below() {
+        return down();
+    }
+
+    @Override
+    public BetterBlockPos below(int amt) {
+        return down(amt);
+    }
+
+    public BetterBlockPos offset(Direction dir) {
+        Vec3i vec = dir.getUnitVec3i();
+        return new BetterBlockPos(x + vec.getX(), y + vec.getY(), z + vec.getZ());
+    }
+
     public BetterBlockPos offset(Direction dir, int dist) {
         if (dist == 0) {
             return this;
         }
-        Vec3i vec = dir.getVector();
+        Vec3i vec = dir.getUnitVec3i();
         return new BetterBlockPos(x + vec.getX() * dist, y + vec.getY() * dist, z + vec.getZ() * dist);
+    }
+
+    public BetterBlockPos add(Direction dir) {
+        return offset(dir);
+    }
+
+    public BetterBlockPos add(Direction dir, int dist) {
+        return offset(dir, dist);
+    }
+
+    public BetterBlockPos add(Vec3i vec) {
+        return new BetterBlockPos(x + vec.getX(), y + vec.getY(), z + vec.getZ());
+    }
+
+    public BetterBlockPos add(BlockPos pos) {
+        return new BetterBlockPos(x + pos.getX(), y + pos.getY(), z + pos.getZ());
+    }
+
+    @Override
+    public BetterBlockPos relative(Direction dir) {
+        return offset(dir);
+    }
+
+    @Override
+    public BetterBlockPos relative(Direction dir, int dist) {
+        return offset(dir, dist);
     }
 
     @Override
@@ -222,6 +279,10 @@ public final class BetterBlockPos extends BlockPos {
         double dy = (double) this.y - to.y;
         double dz = (double) this.z - to.z;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    public Vec3 toCenterPos() {
+        return Vec3.atCenterOf(this);
     }
 
     @Override

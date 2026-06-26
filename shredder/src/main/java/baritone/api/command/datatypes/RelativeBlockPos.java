@@ -34,9 +34,9 @@ public enum RelativeBlockPos implements IDatatypePost<BetterBlockPos, BetterBloc
 
         final IArgConsumer consumer = ctx.getConsumer();
         return new BetterBlockPos(
-                consumer.getDatatypePost(RelativeCoordinate.INSTANCE, (double) origin.x),
+                consumer.getDatatypePost(RelativeCoordinate.INSTANCE, (double) origin.x()),
                 consumer.getDatatypePost(RelativeCoordinate.INSTANCE, (double) origin.y),
-                consumer.getDatatypePost(RelativeCoordinate.INSTANCE, (double) origin.z)
+                consumer.getDatatypePost(RelativeCoordinate.INSTANCE, (double) origin.z())
         );
     }
 

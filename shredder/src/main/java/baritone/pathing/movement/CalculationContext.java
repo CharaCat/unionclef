@@ -26,23 +26,23 @@ import baritone.pathing.precompute.PrecomputedData;
 import baritone.utils.BlockStateInterface;
 import baritone.utils.ToolSet;
 import baritone.utils.pathing.BetterWorldBorder;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.EndPortalFrameBlock;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.component.EnchantmentEffectComponentTypes;
-import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.enchantment.effect.AttributeEnchantmentEffect;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.EndPortalFrameBlock;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.effects.EnchantmentAttributeEffect;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.Holder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,7 +58,7 @@ public class CalculationContext {
 
     public final boolean safeForThreadedUse;
     public final IBaritone baritone;
-    public final World world;
+    public final Level world;
     public final WorldData worldData;
     public final BlockStateInterface bsi;
     public final ToolSet toolSet;
@@ -98,14 +98,14 @@ public class CalculationContext {
         this.precomputedData = new PrecomputedData();
         this.safeForThreadedUse = forUseOnAnotherThread;
         this.baritone = baritone;
-        ClientPlayerEntity player = baritone.getPlayerContext().player();
+        LocalPlayer player = baritone.getPlayerContext().player();
         this.world = baritone.getPlayerContext().world();
         this.worldData = (WorldData) baritone.getPlayerContext().worldData();
         this.bsi = new BlockStateInterface(baritone.getPlayerContext(), forUseOnAnotherThread);
         this.toolSet = new ToolSet(player);
         this.hasThrowaway = !AltoClefSettings.getInstance().isInteractionPaused() && Baritone.settings().allowPlace.value && ((Baritone) baritone).getInventoryBehavior().hasGenericThrowaway();
-        this.hasWaterBucket = Baritone.settings().allowWaterBucketFall.value && PlayerInventory.isValidHotbarIndex(player.getInventory().getSlotWithStack(STACK_BUCKET_WATER)) && world.getRegistryKey() != World.NETHER;
-        this.canSprint = Baritone.settings().allowSprint.value && player.getHungerManager().getFoodLevel() > 6;
+        this.hasWaterBucket = Baritone.settings().allowWaterBucketFall.value && Inventory.isHotbarSlot(player.getInventory().findSlotMatchingItem(STACK_BUCKET_WATER)) && world.dimension() != Level.NETHER;
+        this.canSprint = Baritone.settings().allowSprint.value && player.getFoodData().getFoodLevel() > 6;
         this.placeBlockCost = Baritone.settings().blockPlacementPenalty.value;
         this.allowBreak = !AltoClefSettings.getInstance().isInteractionPaused() && Baritone.settings().allowBreak.value;
         this.allowBreakAnyway = new ArrayList<>(Baritone.settings().allowBreakAnyway.value);
@@ -118,12 +118,12 @@ public class CalculationContext {
         // todo: technically there can now be datapack enchants that replace blocks with any other at any range
         int frostWalkerLevel = 0;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemEnchantmentsComponent itemEnchantments = baritone.getPlayerContext()
+            ItemEnchantments itemEnchantments = baritone.getPlayerContext()
                 .player()
-                .getEquippedStack(slot)
+                .getItemBySlot(slot)
                 .getEnchantments();
-            for (RegistryEntry<Enchantment> enchant : itemEnchantments.getEnchantments()) {
-                if (enchant.matchesKey(Enchantments.FROST_WALKER)) {
+            for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
+                if (enchant.is(Enchantments.FROST_WALKER)) {
                     frostWalkerLevel = itemEnchantments.getLevel(enchant);
                 }
             }
@@ -137,16 +137,16 @@ public class CalculationContext {
         this.maxFallHeightBucket = Baritone.settings().maxFallHeightBucket.value;
         float waterSpeedMultiplier = 1.0f;
         OUTER: for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemEnchantmentsComponent itemEnchantments = baritone.getPlayerContext()
+            ItemEnchantments itemEnchantments = baritone.getPlayerContext()
                 .player()
-                .getEquippedStack(slot)
+                .getItemBySlot(slot)
                 .getEnchantments();
-            for (RegistryEntry<Enchantment> enchant : itemEnchantments.getEnchantments()) {
-                List<AttributeEnchantmentEffect> effects = enchant.value()
-                    .getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES);
-                for (AttributeEnchantmentEffect effect : effects) {
-                    if (effect.attribute().matchesKey(EntityAttributes.WATER_MOVEMENT_EFFICIENCY.getKey().get())) {
-                        waterSpeedMultiplier = effect.amount().getValue(itemEnchantments.getLevel(enchant));
+            for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
+                List<EnchantmentAttributeEffect> effects = enchant.value()
+                    .getEffects(EnchantmentEffectComponents.ATTRIBUTES);
+                for (EnchantmentAttributeEffect effect : effects) {
+                    if (effect.attribute().is(Attributes.WATER_MOVEMENT_EFFICIENCY)) {
+                        waterSpeedMultiplier = effect.amount().calculate(itemEnchantments.getLevel(enchant));
                         break OUTER;
                     }
                 }

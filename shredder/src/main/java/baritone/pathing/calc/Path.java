@@ -69,8 +69,8 @@ class Path extends PathBase {
     private volatile boolean verified;
 
     Path(PathNode start, PathNode end, int numNodes, Goal goal, CalculationContext context) {
-        this.start = new BetterBlockPos(start.x, start.y, start.z);
-        this.end = new BetterBlockPos(end.x, end.y, end.z);
+        this.start = new BetterBlockPos(start.x(), start.y, start.z());
+        this.end = new BetterBlockPos(end.x(), end.y, end.z());
         this.numNodes = numNodes;
         this.movements = new ArrayList<>();
         this.goal = goal;
@@ -82,7 +82,7 @@ class Path extends PathBase {
         // Instead, do it into a linked list, then convert at the end
         while (current != null) {
             tempNodes.addFirst(current);
-            tempPath.addFirst(new BetterBlockPos(current.x, current.y, current.z));
+            tempPath.addFirst(new BetterBlockPos(current.x(), current.y, current.z()));
             current = current.previous;
         }
         // Can't directly convert from the PathNode pseudo linked list to an array because we don't know how long it is

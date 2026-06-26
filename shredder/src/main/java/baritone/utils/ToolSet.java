@@ -19,22 +19,22 @@ package baritone.utils;
 
 import baritone.Baritone;
 import baritone.altoclef.AltoClefSettings;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.EnchantmentEffectComponentTypes;
-import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.enchantment.effect.AttributeEnchantmentEffect;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.registry.tag.TagKey;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.effects.EnchantmentAttributeEffect;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.Holder;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
 
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +59,7 @@ public class ToolSet {
      */
     private final Function<Block, Double> backendCalculation;
 
-    private final ClientPlayerEntity player;
+    private final LocalPlayer player;
 
     /**
      * Used for evaluating the material cost of a tool.
@@ -74,7 +74,7 @@ public class ToolSet {
         ItemTags.NETHERITE_TOOL_MATERIALS
     );
 
-    public ToolSet(ClientPlayerEntity player) {
+    public ToolSet(LocalPlayer player) {
         breakStrengthCache = new HashMap<>();
         this.player = player;
 
@@ -107,17 +107,17 @@ public class ToolSet {
     private int getMaterialCost(ItemStack itemStack) {
         for (int i = 0; i < materialTagsPriorityList.size(); i++) {
             final TagKey<Item> tag = materialTagsPriorityList.get(i);
-            if (itemStack.isIn(tag)) return i;
+            if (itemStack.is(tag)) return i;
         }
         return -1;
     }
 
     public boolean hasSilkTouch(ItemStack stack) {
-        ItemEnchantmentsComponent enchantments = stack.getEnchantments();
-        for (RegistryEntry<Enchantment> enchant : enchantments.getEnchantments()) {
+        ItemEnchantments enchantments = stack.getEnchantments();
+        for (Holder<Enchantment> enchant : enchantments.keySet()) {
             // silk touch enchantment is still special cased as affecting block drops
             // not possible to add custom attribute via datapack
-            if (enchant.matchesKey(Enchantments.SILK_TOUCH) && enchantments.getLevel(enchant) > 0) {
+            if (enchant.is(Enchantments.SILK_TOUCH) && enchantments.getLevel(enchant) > 0) {
                 return true;
             }
         }
@@ -150,13 +150,13 @@ public class ToolSet {
         double highestSpeed = Double.NEGATIVE_INFINITY;
         int lowestCost = Integer.MIN_VALUE;
         boolean bestSilkTouch = false;
-        BlockState blockState = b.getDefaultState();
+        BlockState blockState = b.defaultBlockState();
         for (int i = 0; i < 9; i++) {
-            ItemStack itemStack = player.getInventory().getStack(i);
-            if (!Baritone.settings().useSwordToMine.value && itemStack.getItem().getComponents().contains(DataComponentTypes.WEAPON)) {
+            ItemStack itemStack = player.getInventory().getItem(i);
+            if (!Baritone.settings().useSwordToMine.value && itemStack.getComponents().has(DataComponents.WEAPON)) {
                 continue;
             }
-            if (Baritone.settings().itemSaver.value && (itemStack.getDamage() + Baritone.settings().itemSaverThreshold.value) >= itemStack.getMaxDamage() && itemStack.getMaxDamage() > 1) {
+            if (Baritone.settings().itemSaver.value && (itemStack.getDamageValue() + Baritone.settings().itemSaverThreshold.value) >= itemStack.getMaxDamage() && itemStack.getMaxDamage() > 1) {
                 continue;
             }
             if (AltoClefSettings.getInstance().shouldForceSaveTool(blockState, itemStack)) {
@@ -190,8 +190,8 @@ public class ToolSet {
      * @return A double containing the destruction ticks with the best tool
      */
     private double getBestDestructionTime(Block b) {
-        ItemStack stack = player.getInventory().getStack(getBestSlot(b, false, true));
-        return calculateSpeedVsBlock(stack, b.getDefaultState()) * avoidanceMultiplier(b);
+        ItemStack stack = player.getInventory().getItem(getBestSlot(b, false, true));
+        return calculateSpeedVsBlock(stack, b.defaultBlockState()) * avoidanceMultiplier(b);
     }
 
     private double avoidanceMultiplier(Block b) {
@@ -209,7 +209,7 @@ public class ToolSet {
     public static double calculateSpeedVsBlock(ItemStack item, BlockState state) {
         float hardness;
         try {
-            hardness = state.getHardness(null, null);
+            hardness = state.getDestroySpeed(null, null);
         } catch (NullPointerException npe) {
             // can't easily determine the hardness so treat it as unbreakable
             return -1;
@@ -218,14 +218,14 @@ public class ToolSet {
             return -1;
         }
 
-        float speed = item.getMiningSpeedMultiplier(state);
+        float speed = item.getDestroySpeed(state);
         if (speed > 1) {
-            final ItemEnchantmentsComponent itemEnchantments = item.getEnchantments();
-            OUTER: for (RegistryEntry<Enchantment> enchant : itemEnchantments.getEnchantments()) {
-                List<AttributeEnchantmentEffect> effects = enchant.value().getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES);
-                for (AttributeEnchantmentEffect e : effects) {
-                    if (e.attribute().matches(EntityAttributes.MINING_EFFICIENCY)) {
-                        speed += e.amount().getValue(itemEnchantments.getLevel(enchant));
+            final ItemEnchantments itemEnchantments = item.getEnchantments();
+            OUTER: for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
+                List<EnchantmentAttributeEffect> effects = enchant.value().getEffects(EnchantmentEffectComponents.ATTRIBUTES);
+                for (EnchantmentAttributeEffect e : effects) {
+                    if (e.attribute().is(Attributes.MINING_EFFICIENCY)) {
+                        speed += e.amount().calculate(itemEnchantments.getLevel(enchant));
                         break OUTER;
                     }
                 }
@@ -236,7 +236,7 @@ public class ToolSet {
             return Double.POSITIVE_INFINITY;
         }
         speed /= hardness;
-        if (!state.isToolRequired() || (!item.isEmpty() && item.isSuitableFor(state))) {
+        if (!state.requiresCorrectToolForDrops() || (!item.isEmpty() && item.isCorrectToolForDrops(state))) {
             return speed / 30;
         } else {
             return speed / 100;
@@ -250,11 +250,11 @@ public class ToolSet {
      */
     private double potionAmplifier() {
         double speed = 1;
-        if (player.hasStatusEffect(StatusEffects.HASTE)) {
-            speed *= 1 + (player.getStatusEffect(StatusEffects.HASTE).getAmplifier() + 1) * 0.2;
+        if (player.hasEffect(MobEffects.HASTE)) {
+            speed *= 1 + (player.getEffect(MobEffects.HASTE).getAmplifier() + 1) * 0.2;
         }
-        if (player.hasStatusEffect(StatusEffects.MINING_FATIGUE)) {
-            switch (player.getStatusEffect(StatusEffects.MINING_FATIGUE).getAmplifier()) {
+        if (player.hasEffect(MobEffects.MINING_FATIGUE)) {
+            switch (player.getEffect(MobEffects.MINING_FATIGUE).getAmplifier()) {
                 case 0:
                     speed *= 0.3;
                     break;

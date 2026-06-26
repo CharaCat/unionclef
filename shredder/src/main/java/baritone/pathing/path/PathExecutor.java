@@ -37,15 +37,15 @@ import baritone.utils.BlockStateInterface;
 import baritone.utils.GodBridgeClickHelper;
 import java.util.*;
 import kaptainwutax.tungsten.path.blockSpaceSearchAssist.BlockNode;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Pair;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.world.entity.player.Player;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.Vec3i;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.BlockHitResult;
 
 import static baritone.api.pathing.movement.MovementStatus.*;
 
@@ -153,7 +153,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                 BlockPos target = path.movements().get(pathPosition + expAhead - 1).getDest();
                 int resumeAt = Math.min(pathPosition + expAhead, path.movements().size() - 1);
                 List<BlockNode> hint = TungstenBridge.buildBlockPath(
-                        path.movements(), pathPosition, expAhead, target, (PlayerEntity) ctx.player());
+                        path.movements(), pathPosition, expAhead, target, (Player) ctx.player());
                 tungstenBridge.delegate(target, resumeAt, ctx, Optional.of(hint));
                 clearKeys();
                 return false;
@@ -180,7 +180,7 @@ public class PathExecutor implements IPathExecutor, Helper {
 
         // Sprint-jump airborne handling: skip backtrack, keep aiming forward, snap on landing
         if (sprintJumping) {
-            if (!ctx.player().isOnGround()) {
+            if (!ctx.player().onGround()) {
                 // still airborne — maintain sprint, aim at look-ahead target, skip position checks
                 behavior.baritone.getInputOverrideHandler().clearAllKeys();
                 behavior.baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, true);
@@ -192,7 +192,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                     behavior.baritone.getLookBehavior().updateTarget(
                             RotationUtils.calcRotationFromVec3d(ctx.playerHead(),
                                     VecUtils.getBlockPosCenter(lookTarget),
-                                    ctx.playerRotations()).withPitch(ctx.playerRotations().getPitch()),
+                                    ctx.playerRotations()).withPitch(ctx.playerRotations().getXRot()),
                             false);
                 }
                 return false;
@@ -211,9 +211,9 @@ public class PathExecutor implements IPathExecutor, Helper {
             // Fallback: use closest path position if exact match not found
             if (!foundLanding) {
                 Pair<Double, BlockPos> closest = closestPathPos(path);
-                if (closest.getRight() != null) {
+                if (closest.getSecond() != null) {
                     for (int i = pathPosition; i < path.movements().size(); i++) {
-                        if (((Movement) path.movements().get(i)).getValidPositions().contains(closest.getRight())) {
+                        if (((Movement) path.movements().get(i)).getValidPositions().contains(closest.getSecond())) {
                             pathPosition = i;
                             onChangeInPathPosition();
                             break;
@@ -253,7 +253,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         Pair<Double, BlockPos> status = closestPathPos(path);
         if (possiblyOffPath(status, MAX_DIST_FROM_PATH)) {
             ticksAway++;
-            System.out.println("FAR AWAY FROM PATH FOR " + ticksAway + " TICKS. Current distance: " + status.getLeft() + ". Threshold: " + MAX_DIST_FROM_PATH);
+            System.out.println("FAR AWAY FROM PATH FOR " + ticksAway + " TICKS. Current distance: " + status.getFirst() + ". Threshold: " + MAX_DIST_FROM_PATH);
             if (ticksAway > MAX_TICKS_AWAY) {
                 logDebug("Too far away from path for too long, cancelling path");
                 cancel();
@@ -309,7 +309,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         }*/
         if (pathPosition < path.movements().size() - 1) {
             IMovement next = path.movements().get(pathPosition + 1);
-            if (!behavior.baritone.bsi.worldContainsLoadedChunk(next.getDest().x, next.getDest().z)) {
+            if (!behavior.baritone.bsi.worldContainsLoadedChunk(next.getDest().x(), next.getDest().z())) {
                 logDebug("Pausing since destination is at edge of loaded chunks");
                 clearKeys();
                 return true;
@@ -349,7 +349,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         // Jump bridging: detect consecutive bridge movements and start jump-place sequence
         String bridgeMode = Baritone.settings().bridgingMode.value;
         if (("jump".equals(bridgeMode) || "back_jump".equals(bridgeMode)) && !jumpBridging
-                && ctx.player().isOnGround() && tryStartJumpBridge(movement)) {
+                && ctx.player().onGround() && tryStartJumpBridge(movement)) {
             return false;
         }
 
@@ -413,14 +413,14 @@ public class PathExecutor implements IPathExecutor, Helper {
         if (!current.isPresent()) {
             return false;
         }
-        if (!ctx.player().isOnGround()) {
+        if (!ctx.player().onGround()) {
             return false;
         }
-        if (!MovementHelper.canWalkOn(ctx, ctx.playerFeet().down())) {
+        if (!MovementHelper.canWalkOn(ctx, ctx.playerFeet().below())) {
             // we're in some kind of sketchy situation, maybe parkouring
             return false;
         }
-        if (!MovementHelper.canWalkThrough(ctx, ctx.playerFeet()) || !MovementHelper.canWalkThrough(ctx, ctx.playerFeet().up())) {
+        if (!MovementHelper.canWalkThrough(ctx, ctx.playerFeet()) || !MovementHelper.canWalkThrough(ctx, ctx.playerFeet().above())) {
             // suffocating?
             return false;
         }
@@ -442,7 +442,7 @@ public class PathExecutor implements IPathExecutor, Helper {
     }
 
     private boolean possiblyOffPath(Pair<Double, BlockPos> status, double leniency) {
-        double distanceFromPath = status.getLeft();
+        double distanceFromPath = status.getFirst();
         if (distanceFromPath > leniency) {
             // when we're midair in the middle of a fall, we're very far from both the beginning and the end, but we aren't actually off path
             if (path.movements().get(pathPosition) instanceof MovementFall) {
@@ -462,12 +462,12 @@ public class PathExecutor implements IPathExecutor, Helper {
      * @return Whether or not it was possible to snap to the current player feet
      */
     public boolean snipsnapifpossible() {
-        if (!ctx.player().isOnGround() && ctx.world().getFluidState(ctx.playerFeet()).isEmpty()) {
+        if (!ctx.player().onGround() && ctx.world().getFluidState(ctx.playerFeet()).isEmpty()) {
             // if we're falling in the air, and not in water, don't splice
             return false;
         } else {
             // we are either onGround or in liquid
-            if (ctx.player().getVelocity().y < -0.1) {
+            if (ctx.player().getDeltaMovement().y < -0.1) {
                 // if we are strictly moving downwards (not stationary)
                 // we could be falling through water, which could be unsafe to splice
                 return false; // so don't
@@ -525,7 +525,7 @@ public class PathExecutor implements IPathExecutor, Helper {
             if (pathPosition < path.length() - 2) {
                 // keep this out of onTick, even if that means a tick of delay before it has an effect
                 IMovement next = path.movements().get(pathPosition + 1);
-                if (MovementHelper.canUseFrostWalker(ctx, next.getDest().down())) {
+                if (MovementHelper.canUseFrostWalker(ctx, next.getDest().below())) {
                     // frostwalker only works if you cross the edge of the block on ground so in some cases we may not overshoot
                     // Since MovementDescend can't know the next movement we have to tell it
                     if (next instanceof MovementTraverse || next instanceof MovementParkour) {
@@ -533,9 +533,9 @@ public class PathExecutor implements IPathExecutor, Helper {
                         // this is true if the next movement does not ascend or descends and goes into the same cardinal direction (N-NE-E-SE-S-SW-W-NW) as the descend
                         // in that case current.getDirection() is e.g. (0, -1, 1) and next.getDirection() is e.g. (0, 0, 3) so the cross product of (0, 0, 1) and (0, 0, 3) is taken, which is (0, 0, 0) because the vectors are colinear (don't form a plane)
                         // since movements in exactly the opposite direction (e.g. descend (0, -1, 1) and traverse (0, 0, -1)) would also pass this check we also have to rule out that case
-                        // we can do that by adding the directions because traverse is always 1 long like descend and parkour can't jump through current.getSrc().down()
-                        boolean sameFlatDirection = !current.getDirection().up().add(next.getDirection()).equals(BlockPos.ORIGIN)
-                                && current.getDirection().up().crossProduct(next.getDirection()).equals(BlockPos.ORIGIN); // here's why you learn maths in school
+                        // we can do that by adding the directions because traverse is always 1 long like descend and parkour can't jump through current.getSrc().below()
+                        boolean sameFlatDirection = !current.getDirection().above().offset(next.getDirection()).equals(BlockPos.ZERO)
+                                && current.getDirection().above().cross(next.getDirection()).equals(BlockPos.ZERO); // here's why you learn maths in school
                         if (sameFlatDirection && !couldPlaceInstead) {
                             ((MovementDescend) current).forceSafeMode();
                         }
@@ -549,7 +549,7 @@ public class PathExecutor implements IPathExecutor, Helper {
 
             if (pathPosition < path.length() - 2) {
                 IMovement next = path.movements().get(pathPosition + 1);
-                if (next instanceof MovementAscend && current.getDirection().up().equals(next.getDirection().down())) {
+                if (next instanceof MovementAscend && current.getDirection().above().equals(next.getDirection().below())) {
                     // a descend then an ascend in the same direction
                     pathPosition++;
                     onChangeInPathPosition();
@@ -575,17 +575,17 @@ public class PathExecutor implements IPathExecutor, Helper {
 
                     return true;
                 }
-                //logDebug("Turning off sprinting " + movement + " " + next + " " + movement.getDirection() + " " + next.getDirection().down() + " " + next.getDirection().down().equals(movement.getDirection()));
+                //logDebug("Turning off sprinting " + movement + " " + next + " " + movement.getDirection() + " " + next.getDirection().below() + " " + next.getDirection().below().equals(movement.getDirection()));
             }
         }
         if (current instanceof MovementAscend && pathPosition != 0) {
             IMovement prev = path.movements().get(pathPosition - 1);
-            if (prev instanceof MovementDescend && prev.getDirection().up().equals(current.getDirection().down())) {
-                BlockPos center = current.getSrc().up();
+            if (prev instanceof MovementDescend && prev.getDirection().above().equals(current.getDirection().below())) {
+                BlockPos center = current.getSrc().above();
                 // playerFeet adds 0.1251 to account for soul sand
                 // farmland is 0.9375
                 // 0.07 is to account for farmland
-                if (ctx.player().getEntityPos().y >= center.getY() - 0.07) {
+                if (ctx.player().position().y >= center.getY() - 0.07) {
                     behavior.baritone.getInputOverrideHandler().setInputForceState(Input.JUMP, false);
                     return true;
                 }
@@ -595,9 +595,9 @@ public class PathExecutor implements IPathExecutor, Helper {
             }
         }
         if (current instanceof MovementFall) {
-            Pair<Vec3d, BlockPos> data = overrideFall((MovementFall) current);
+            Pair<Vec3, BlockPos> data = overrideFall((MovementFall) current);
             if (data != null) {
-                BetterBlockPos fallDest = new BetterBlockPos(data.getRight());
+                BetterBlockPos fallDest = new BetterBlockPos(data.getSecond());
                 if (!path.positions().contains(fallDest)) {
                     throw new IllegalStateException();
                 }
@@ -608,7 +608,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                     return true;
                 }
                 clearKeys();
-                behavior.baritone.getLookBehavior().updateTarget(RotationUtils.calcRotationFromVec3d(ctx.playerHead(), data.getLeft(), ctx.playerRotations()), false);
+                behavior.baritone.getLookBehavior().updateTarget(RotationUtils.calcRotationFromVec3d(ctx.playerHead(), data.getFirst(), ctx.playerRotations()), false);
                 behavior.baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, true);
                 return true;
             }
@@ -616,7 +616,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         return false;
     }
 
-    private Pair<Vec3d, BlockPos> overrideFall(MovementFall movement) {
+    private Pair<Vec3, BlockPos> overrideFall(MovementFall movement) {
         Vec3i dir = movement.getDirection();
         if (dir.getY() < -3) {
             return null;
@@ -636,12 +636,12 @@ public class PathExecutor implements IPathExecutor, Helper {
                 break;
             }
             for (int y = next.getDest().y; y <= movement.getSrc().y + 1; y++) {
-                BlockPos chk = new BlockPos(next.getDest().x, y, next.getDest().z);
+                BlockPos chk = new BlockPos(next.getDest().x(), y, next.getDest().z());
                 if (!MovementHelper.fullyPassable(ctx, chk)) {
                     break outer;
                 }
             }
-            if (!MovementHelper.canWalkOn(ctx, next.getDest().down())) {
+            if (!MovementHelper.canWalkOn(ctx, next.getDest().below())) {
                 break;
             }
         }
@@ -651,22 +651,22 @@ public class PathExecutor implements IPathExecutor, Helper {
         }
         double len = i - pathPosition - 0.4;
         return new Pair<>(
-                new Vec3d(flatDir.getX() * len + movement.getDest().x + 0.5, movement.getDest().y, flatDir.getZ() * len + movement.getDest().z + 0.5),
-                movement.getDest().add(flatDir.getX() * (i - pathPosition), 0, flatDir.getZ() * (i - pathPosition)));
+                new Vec3(flatDir.getX() * len + movement.getDest().x + 0.5, movement.getDest().y, flatDir.getZ() * len + movement.getDest().z + 0.5),
+                movement.getDest().offset(flatDir.getX() * (i - pathPosition), 0, flatDir.getZ() * (i - pathPosition)));
     }
 
     private static boolean skipNow(IPlayerContext ctx, IMovement current) {
-        double offTarget = Math.abs(current.getDirection().getX() * (current.getSrc().z + 0.5D - ctx.player().getEntityPos().z)) + Math.abs(current.getDirection().getZ() * (current.getSrc().x + 0.5D - ctx.player().getEntityPos().x));
+        double offTarget = Math.abs(current.getDirection().getX() * (current.getSrc().z + 0.5D - ctx.player().position().z())) + Math.abs(current.getDirection().getZ() * (current.getSrc().x + 0.5D - ctx.player().position().x()));
         if (offTarget > 0.1) {
             return false;
         }
         // we are centered
-        BlockPos headBonk = current.getSrc().subtract(current.getDirection()).up(2);
+        BlockPos headBonk = current.getSrc().subtract(current.getDirection()).above(2);
         if (MovementHelper.fullyPassable(ctx, headBonk)) {
             return true;
         }
         // wait 0.3
-        double flatDist = Math.abs(current.getDirection().getX() * (headBonk.getX() + 0.5D - ctx.player().getEntityPos().x)) + Math.abs(current.getDirection().getZ() * (headBonk.getZ() + 0.5 - ctx.player().getEntityPos().z));
+        double flatDist = Math.abs(current.getDirection().getX() * (headBonk.getX() + 0.5D - ctx.player().position().x())) + Math.abs(current.getDirection().getZ() * (headBonk.getZ() + 0.5 - ctx.player().position().z()));
         return flatDist > 0.8;
     }
 
@@ -674,16 +674,16 @@ public class PathExecutor implements IPathExecutor, Helper {
         if (!Baritone.settings().sprintAscends.value) {
             return false;
         }
-        if (!current.getDirection().equals(next.getDirection().down())) {
+        if (!current.getDirection().equals(next.getDirection().below())) {
             return false;
         }
         if (nextnext.getDirection().getX() != next.getDirection().getX() || nextnext.getDirection().getZ() != next.getDirection().getZ()) {
             return false;
         }
-        if (!MovementHelper.canWalkOn(ctx, current.getDest().down())) {
+        if (!MovementHelper.canWalkOn(ctx, current.getDest().below())) {
             return false;
         }
-        if (!MovementHelper.canWalkOn(ctx, next.getDest().down())) {
+        if (!MovementHelper.canWalkOn(ctx, next.getDest().below())) {
             return false;
         }
         if (!next.toBreakCached.isEmpty()) {
@@ -691,23 +691,23 @@ public class PathExecutor implements IPathExecutor, Helper {
         }
         for (int x = 0; x < 2; x++) {
             for (int y = 0; y < 3; y++) {
-                BlockPos chk = current.getSrc().up(y);
+                BlockPos chk = current.getSrc().above(y);
                 if (x == 1) {
-                    chk = chk.add(current.getDirection());
+                    chk = chk.offset(current.getDirection());
                 }
                 if (!MovementHelper.fullyPassable(ctx, chk)) {
                     return false;
                 }
             }
         }
-        if (MovementHelper.avoidWalkingInto(ctx.world().getBlockState(current.getSrc().up(3)))) {
+        if (MovementHelper.avoidWalkingInto(ctx.world().getBlockState(current.getSrc().above(3)))) {
             return false;
         }
-        if (AltoClefSettings.getInstance().shouldAvoidWalkThroughForce(current.getSrc().up(3))
-                || AltoClefSettings.getInstance().shouldAvoidWalkThroughForce(current.getSrc().up(2))) {
+        if (AltoClefSettings.getInstance().shouldAvoidWalkThroughForce(current.getSrc().above(3))
+                || AltoClefSettings.getInstance().shouldAvoidWalkThroughForce(current.getSrc().above(2))) {
             return false;
         }
-        return !MovementHelper.avoidWalkingInto(ctx.world().getBlockState(next.getDest().up(2))); // codacy smh my head
+        return !MovementHelper.avoidWalkingInto(ctx.world().getBlockState(next.getDest().above(2))); // codacy smh my head
     }
 
     private static boolean canSprintFromDescendInto(IPlayerContext ctx, IMovement current, IMovement next) {
@@ -770,22 +770,22 @@ public class PathExecutor implements IPathExecutor, Helper {
             return;
         }
         // world raycast: verify clear line of sight from eyes to target center
-        Vec3d eyes = ctx.player().getCameraPosVec(1.0f);
-        Vec3d targetCenter = VecUtils.getBlockPosCenter(bestTarget);
-        net.minecraft.util.hit.HitResult hit = ctx.world().raycast(
-                new net.minecraft.world.RaycastContext(
+        Vec3 eyes = ctx.player().getEyePosition(1.0F);
+        Vec3 targetCenter = VecUtils.getBlockPosCenter(bestTarget);
+        net.minecraft.world.phys.HitResult hit = ctx.world().clip(
+                new net.minecraft.world.level.ClipContext(
                         eyes, targetCenter,
-                        net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
-                        net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE,
                         ctx.player()));
-        if (hit.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
+        if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
             // something blocks the view — don't override
             return;
         }
         behavior.baritone.getLookBehavior().updateTarget(
                 RotationUtils.calcRotationFromVec3d(ctx.playerHead(),
                         targetCenter,
-                        ctx.playerRotations()).withPitch(ctx.playerRotations().getPitch()),
+                        ctx.playerRotations()).withPitch(ctx.playerRotations().getXRot()),
                 false);
     }
 
@@ -813,7 +813,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         if (pathPosition >= path.movements().size()) {
             return false;
         }
-        if (!ctx.player().isOnGround()) {
+        if (!ctx.player().onGround()) {
             return false;
         }
         Movement current = (Movement) path.movements().get(pathPosition);
@@ -847,10 +847,10 @@ public class PathExecutor implements IPathExecutor, Helper {
                 break;
             }
             // check the path ahead is walkable and clear
-            if (!MovementHelper.canWalkOn(ctx, next.getDest().down())) {
+            if (!MovementHelper.canWalkOn(ctx, next.getDest().below())) {
                 break;
             }
-            if (!MovementHelper.canWalkThrough(ctx, next.getDest()) || !MovementHelper.canWalkThrough(ctx, next.getDest().up())) {
+            if (!MovementHelper.canWalkThrough(ctx, next.getDest()) || !MovementHelper.canWalkThrough(ctx, next.getDest().above())) {
                 break;
             }
             straightCount++;
@@ -906,10 +906,10 @@ public class PathExecutor implements IPathExecutor, Helper {
             if (!m.getDirection().equals(expected)) {
                 return false;
             }
-            if (!MovementHelper.canWalkOn(ctx, m.getDest().down())) {
+            if (!MovementHelper.canWalkOn(ctx, m.getDest().below())) {
                 return false;
             }
-            if (!MovementHelper.canWalkThrough(ctx, m.getDest()) || !MovementHelper.canWalkThrough(ctx, m.getDest().up())) {
+            if (!MovementHelper.canWalkThrough(ctx, m.getDest()) || !MovementHelper.canWalkThrough(ctx, m.getDest().above())) {
                 return false;
             }
         }
@@ -965,7 +965,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         }
         if (!behavior.baritone.getInventoryBehavior().hasGenericThrowaway()) return false;
 
-        BlockPos firstPlace = current.getDest().down();
+        BlockPos firstPlace = current.getDest().below();
         if (!behavior.baritone.getInventoryBehavior().selectThrowawayForLocation(true, firstPlace.getX(), firstPlace.getY(), firstPlace.getZ())) {
             return false;
         }
@@ -979,7 +979,7 @@ public class PathExecutor implements IPathExecutor, Helper {
             // Need runway: 3 solid floor blocks behind for sprint approach.
             BlockPos feet = current.getSrc();
             for (int step = 1; step <= 3; step++) {
-                BlockPos backFloor = feet.add(-dir.getX() * step, -1, -dir.getZ() * step);
+                BlockPos backFloor = feet.offset(-dir.getX() * step, -1, -dir.getZ() * step);
                 if (!MovementHelper.canWalkOn(bsi, backFloor.getX(), backFloor.getY(), backFloor.getZ())) {
                     if (JB_DEBUG) System.out.println(String.format("JB_TRY: runway fail at step %d: %s is not solid (feet=%s, dir=%s)",
                             step, backFloor, feet, dir));
@@ -999,7 +999,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         jumpBridgeMoveIndex = pathPosition;
         jumpBridgeDirX = dir.getX();
         jumpBridgeDirZ = dir.getZ();
-        jumpBridgeLastSolid = current.getSrc().down();
+        jumpBridgeLastSolid = current.getSrc().below();
         jumpBridgeAirborneTicks = 0;
 
         // Fast clicks: override rightClickSpeed for rapid placement while airborne
@@ -1040,7 +1040,7 @@ public class PathExecutor implements IPathExecutor, Helper {
         if (nextDir.getX() != jumpBridgeDirX || nextDir.getZ() != jumpBridgeDirZ) return false;
         if (((Movement) nextMove).toPlace(bsi).isEmpty()) return false;
         // Re-select throwaway block
-        BlockPos nextPlace = nextMove.getDest().down();
+        BlockPos nextPlace = nextMove.getDest().below();
         return behavior.baritone.getInventoryBehavior().selectThrowawayForLocation(
                 true, nextPlace.getX(), nextPlace.getY(), nextPlace.getZ());
     }
@@ -1050,8 +1050,8 @@ public class PathExecutor implements IPathExecutor, Helper {
      * Verifies placement in-world before advancing lastSolid.
      */
     private boolean jumpBridgeAirbornePlace(BlockStateInterface bsi, double pastFace,
-                                             Vec3d head, Vec3d faceCenterPoint, float backwardYaw) {
-        BlockPos expectedFloor = jumpBridgeLastSolid.add(jumpBridgeDirX, 0, jumpBridgeDirZ);
+                                             Vec3 head, Vec3 faceCenterPoint, float backwardYaw) {
+        BlockPos expectedFloor = jumpBridgeLastSolid.offset(jumpBridgeDirX, 0, jumpBridgeDirZ);
         boolean floorDone = MovementHelper.canWalkOn(bsi, expectedFloor.getX(), expectedFloor.getY(), expectedFloor.getZ());
 
         if (floorDone) {
@@ -1064,8 +1064,8 @@ public class PathExecutor implements IPathExecutor, Helper {
         if (pastFace < 0.15) return false; // still approaching
 
         // Bounding box check: don't place if player hitbox overlaps the target block
-        Box blockBox = new Box(expectedFloor);
-        if (ctx.player().getBoundingBox().intersects(blockBox.expand(0.01))) {
+        AABB blockBox = new AABB(expectedFloor);
+        if (ctx.player().getBoundingBox().intersects(blockBox.inflate(0.01))) {
             return false;
         }
 
@@ -1076,10 +1076,10 @@ public class PathExecutor implements IPathExecutor, Helper {
         }
 
         // Direct block interaction — bypass objectMouseOver/crosshair raycast.
-        Direction placeFace = Direction.fromVector(jumpBridgeDirX, 0, jumpBridgeDirZ, Direction.NORTH);
+        Direction placeFace = Direction.getNearest(jumpBridgeDirX, 0, jumpBridgeDirZ, Direction.NORTH);
         if (placeFace == null) return false;
 
-        Vec3d hitPos = new Vec3d(
+        Vec3 hitPos = new Vec3(
                 jumpBridgeLastSolid.getX() + 0.5 + jumpBridgeDirX * 0.5,
                 jumpBridgeLastSolid.getY() + 0.5,
                 jumpBridgeLastSolid.getZ() + 0.5 + jumpBridgeDirZ * 0.5);
@@ -1088,18 +1088,18 @@ public class PathExecutor implements IPathExecutor, Helper {
         // Reset item use cooldown to prevent Minecraft throttling rapid placements.
         // Without this, the 3rd block in a cycle occasionally fails to place.
         try {
-            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             java.lang.reflect.Field f = mc.getClass().getDeclaredField("itemUseCooldown");
             f.setAccessible(true);
             f.setInt(mc, 0);
         } catch (Exception ignored) {}
 
         ctx.playerController().processRightClickBlock(
-                ctx.player(), ctx.world(), Hand.MAIN_HAND, hitResult);
-        ctx.player().swingHand(Hand.MAIN_HAND);
+                ctx.player(), ctx.world(), InteractionHand.MAIN_HAND, hitResult);
+        ctx.player().swing(InteractionHand.MAIN_HAND);
 
         if (JB_DEBUG) System.out.println(String.format("JB_PLACE: INTERACT at pastFace=%.2f, face=%s of %s, target=%s, playerY=%.2f",
-                pastFace, placeFace, jumpBridgeLastSolid, expectedFloor, ctx.player().getEntityPos().y));
+                pastFace, placeFace, jumpBridgeLastSolid, expectedFloor, ctx.player().position().y));
         return false;
     }
 
@@ -1121,13 +1121,13 @@ public class PathExecutor implements IPathExecutor, Helper {
         float backwardYaw = forwardYaw + 180.0f;
 
         // Face geometry (shared)
-        Vec3d faceCenterPoint = new Vec3d(
+        Vec3 faceCenterPoint = new Vec3(
                 jumpBridgeLastSolid.getX() + 0.5 + jumpBridgeDirX * 0.5,
                 jumpBridgeLastSolid.getY() + 0.5,
                 jumpBridgeLastSolid.getZ() + 0.5 + jumpBridgeDirZ * 0.5);
-        Vec3d head = ctx.playerHead();
-        double pastFace = (head.x - faceCenterPoint.x) * jumpBridgeDirX
-                        + (head.z - faceCenterPoint.z) * jumpBridgeDirZ;
+        Vec3 head = ctx.playerHead();
+        double pastFace = (head.x - faceCenterPoint.x()) * jumpBridgeDirX
+                        + (head.z - faceCenterPoint.z()) * jumpBridgeDirZ;
 
         switch (jumpBridgePhase) {
 
@@ -1143,8 +1143,8 @@ public class PathExecutor implements IPathExecutor, Helper {
 
                 BlockPos firstDest = path.movements().get(jumpBridgeMoveIndex).getDest();
                 double distToDest = Math.max(
-                        Math.abs(ctx.player().getEntityPos().x - (firstDest.getX() + 0.5)),
-                        Math.abs(ctx.player().getEntityPos().z - (firstDest.getZ() + 0.5)));
+                        Math.abs(ctx.player().position().x - (firstDest.getX() + 0.5)),
+                        Math.abs(ctx.player().position().z - (firstDest.getZ() + 0.5)));
 
                 if (distToDest < 1.0) {
                     jumpBridgePhase = JumpBridgePhase.BJ_PRE_ROTATE;
@@ -1159,7 +1159,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                         new Rotation(backwardYaw, 75.0f), false);
                 behavior.baritone.getInputOverrideHandler().setInputForceState(Input.SNEAK, true);
 
-                float yawDiff = Math.abs(wrapDegrees(ctx.player().getYaw() - backwardYaw));
+                float yawDiff = Math.abs(wrapDegrees(ctx.player().getYRot() - backwardYaw));
                 if (yawDiff < 15.0f && jumpBridgeTicksInPhase > 4) {
                     jumpBridgePhase = JumpBridgePhase.BJ_BRIDGE;
                     jumpBridgeTicksInPhase = 0;
@@ -1172,7 +1172,7 @@ public class PathExecutor implements IPathExecutor, Helper {
             case BJ_BRIDGE: {
                 BlockStateInterface bsi = new BlockStateInterface(ctx);
 
-                if (ctx.player().isOnGround()) {
+                if (ctx.player().onGround()) {
                     jumpBridgeAirborneTicks = 0;
                     jumpBridgeSnapPath();
 
@@ -1185,8 +1185,8 @@ public class PathExecutor implements IPathExecutor, Helper {
 
                     BlockPos nextDest = path.movements().get(jumpBridgeMoveIndex).getDest();
                     double distToEdge = Math.max(
-                            Math.abs(ctx.player().getEntityPos().x - (nextDest.getX() + 0.5)),
-                            Math.abs(ctx.player().getEntityPos().z - (nextDest.getZ() + 0.5)));
+                            Math.abs(ctx.player().position().x - (nextDest.getX() + 0.5)),
+                            Math.abs(ctx.player().position().z - (nextDest.getZ() + 0.5)));
                     if (distToEdge < 0.8) {
                         behavior.baritone.getInputOverrideHandler().setInputForceState(Input.JUMP, true);
                     }
@@ -1217,8 +1217,8 @@ public class PathExecutor implements IPathExecutor, Helper {
                 // Over long bridges, tiny velocity errors accumulate and the player drifts off the 1-wide path.
                 BlockPos dest = path.movements().get(jumpBridgeMoveIndex).getDest();
                 double lateralOffset = (jumpBridgeDirZ != 0)
-                        ? ctx.player().getEntityPos().x - (dest.getX() + 0.5)  // bridge goes Z-axis, drift on X
-                        : ctx.player().getEntityPos().z - (dest.getZ() + 0.5); // bridge goes X-axis, drift on Z
+                        ? ctx.player().position().x - (dest.getX() + 0.5)  // bridge goes Z-axis, drift on X
+                        : ctx.player().position().z - (dest.getZ() + 0.5); // bridge goes X-axis, drift on Z
                 if (Math.abs(lateralOffset) > 0.05) {
                     float correction = (float) Math.toDegrees(Math.atan2(lateralOffset * 0.3, 1.0));
                     // Sign: + steers AWAY from drift (- was inverted, steering INTO it)
@@ -1230,20 +1230,20 @@ public class PathExecutor implements IPathExecutor, Helper {
                 // re-trigger sprint after it drops during airborne. setSprinting(true)
                 // bypasses the input system. Baritone already uses setSprinting(false)
                 // at line 362, so this is an established pattern.
-                if (ctx.player().isOnGround() && jumpBridgeTicksInPhase > 0) {
+                if (ctx.player().onGround() && jumpBridgeTicksInPhase > 0) {
                     ctx.player().setSprinting(true);
                 }
 
                 BlockPos firstDest = path.movements().get(jumpBridgeMoveIndex).getDest();
                 double distToDest = Math.max(
-                        Math.abs(ctx.player().getEntityPos().x - (firstDest.getX() + 0.5)),
-                        Math.abs(ctx.player().getEntityPos().z - (firstDest.getZ() + 0.5)));
+                        Math.abs(ctx.player().position().x - (firstDest.getX() + 0.5)),
+                        Math.abs(ctx.player().position().z - (firstDest.getZ() + 0.5)));
 
                 // Per-tick debug
                 if (JB_DEBUG) System.out.println(String.format("JB_SPRINT: tick=%d dist=%.2f sprint=%b onGround=%b velX=%.3f velZ=%.3f",
                         jumpBridgeTicksInPhase, distToDest, ctx.player().isSprinting(),
-                        ctx.player().isOnGround(),
-                        ctx.player().getVelocity().x, ctx.player().getVelocity().z));
+                        ctx.player().onGround(),
+                        ctx.player().getDeltaMovement().x(), ctx.player().getDeltaMovement().z()));
 
                 // Jump when sprinting — full-speed telly (2-3 blocks per jump)
                 // But NOT if too few bridge segments remain (prevents overshooting path end)
@@ -1265,14 +1265,14 @@ public class PathExecutor implements IPathExecutor, Helper {
                 }
 
                 // Near end of bridge — exit gracefully and let slow bridge finish
-                if (remainingBridge < 3 && distToDest < 0.5 && ctx.player().isOnGround()) {
+                if (remainingBridge < 3 && distToDest < 0.5 && ctx.player().onGround()) {
                     if (JB_DEBUG) System.out.println(String.format("JB: only %d bridge moves left, exiting gracefully", remainingBridge));
                     exitJumpBridge();
                     return true;
                 }
 
                 // Emergency sneak — at the very edge without sprint
-                if (distToDest < 0.2 && !ctx.player().isSprinting() && ctx.player().isOnGround()) {
+                if (distToDest < 0.2 && !ctx.player().isSprinting() && ctx.player().onGround()) {
                     behavior.baritone.getInputOverrideHandler().setInputForceState(Input.SNEAK, true);
                     if (JB_DEBUG) System.out.println("JB: emergency sneak at edge, exiting");
                     exitJumpBridge();
@@ -1280,7 +1280,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                 }
 
                 // Transition to airborne
-                if (!ctx.player().isOnGround() && jumpBridgeTicksInPhase > 1) {
+                if (!ctx.player().onGround() && jumpBridgeTicksInPhase > 1) {
                     if (JB_DEBUG) System.out.println(String.format("JB: FJ_SPRINT → FJ_AIRBORNE (sprinting=%b, distToDest=%.2f)",
                             ctx.player().isSprinting(), distToDest));
                     jumpBridgePhase = JumpBridgePhase.FJ_AIRBORNE;
@@ -1297,7 +1297,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                 int bridgeY = jumpBridgeLastSolid.getY() + 1;
 
                 // Phase 4 (Recovery Flick): snap forward BEFORE landing.
-                boolean nearingLanding = ctx.player().getEntityPos().y < bridgeY + 0.5 && ctx.player().getVelocity().y < 0;
+                boolean nearingLanding = ctx.player().position().y < bridgeY + 0.5 && ctx.player().getDeltaMovement().y < 0;
                 if (nearingLanding || jumpBridgeAirborneTicks > 8) {
                     // Recovery: face forward + W + Sprint. Force sprint for instant re-activation.
                     behavior.baritone.getLookBehavior().updateTarget(
@@ -1309,7 +1309,7 @@ public class PathExecutor implements IPathExecutor, Helper {
                     // Instant snap (blockInteract=true) -- 180 degrees in ~8 ticks is
                     // too much for WindMouse, and human telly bridgers flick fast anyway.
                     double aimY = jumpBridgeLastSolid.getY() + 0.5;
-                    Vec3d aimPoint = new Vec3d(faceCenterPoint.x, aimY, faceCenterPoint.z);
+                    Vec3 aimPoint = new Vec3(faceCenterPoint.x(), aimY, faceCenterPoint.z());
                     Rotation faceLook = RotationUtils.calcRotationFromVec3d(head, aimPoint, ctx.playerRotations());
                     behavior.baritone.getLookBehavior().updateTarget(faceLook, true);
                     // No movement keys — pure inertia from sprint-jump
@@ -1320,15 +1320,15 @@ public class PathExecutor implements IPathExecutor, Helper {
                 jumpBridgeAirbornePlace(bsi, pastFace, head, faceCenterPoint, backwardYaw);
 
                 // Safety: if player drops below bridge level, exit immediately
-                if (ctx.player().getEntityPos().y < bridgeY - 0.8) {
+                if (ctx.player().position().y < bridgeY - 0.8) {
                     if (JB_DEBUG) System.out.println(String.format("JB: FALLING below bridge (playerY=%.1f, bridgeY=%d), exiting",
-                            ctx.player().getEntityPos().y, bridgeY));
+                            ctx.player().position().y, bridgeY));
                     exitJumpBridge();
                     return true;
                 }
 
                 // Landed → check Y, then chain directly into next sprint
-                if (ctx.player().isOnGround() && jumpBridgeAirborneTicks > 2) {
+                if (ctx.player().onGround() && jumpBridgeAirborneTicks > 2) {
                     int expectedY = jumpBridgeLastSolid.getY() + 1;
                     if (JB_DEBUG) System.out.println(String.format("JB: LANDED after %d airborne ticks. playerY=%d, expectedY=%d, lastSolid=%s",
                             jumpBridgeAirborneTicks, ctx.playerFeet().getY(), expectedY, jumpBridgeLastSolid));
@@ -1391,16 +1391,16 @@ public class PathExecutor implements IPathExecutor, Helper {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 for (int dy = -1; dy <= 2; dy++) {
-                    net.minecraft.block.BlockState state = bsi.get0(feet.getX() + dx, feet.getY() + dy, feet.getZ() + dz);
+                    net.minecraft.world.level.block.state.BlockState state = bsi.get0(feet.getX() + dx, feet.getY() + dy, feet.getZ() + dz);
                     if (state == null) continue;
-                    net.minecraft.block.Block block = state.getBlock();
+                    net.minecraft.world.level.block.Block block = state.getBlock();
                     if (!state.getFluidState().isEmpty()) return true; // any liquid
-                    if (block == net.minecraft.block.Blocks.LADDER) return true;
-                    if (block == net.minecraft.block.Blocks.VINE) return true;
-                    if (block == net.minecraft.block.Blocks.SCAFFOLDING) return true;
-                    if (block == net.minecraft.block.Blocks.COBWEB) return true;
-                    if (block == net.minecraft.block.Blocks.SWEET_BERRY_BUSH) return true;
-                    if (block instanceof net.minecraft.block.TrapdoorBlock) return true;
+                    if (block == net.minecraft.world.level.block.Blocks.LADDER) return true;
+                    if (block == net.minecraft.world.level.block.Blocks.VINE) return true;
+                    if (block == net.minecraft.world.level.block.Blocks.SCAFFOLDING) return true;
+                    if (block == net.minecraft.world.level.block.Blocks.COBWEB) return true;
+                    if (block == net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH) return true;
+                    if (block instanceof net.minecraft.world.level.block.TrapDoorBlock) return true;
                 }
             }
         }
@@ -1431,7 +1431,7 @@ public class PathExecutor implements IPathExecutor, Helper {
             float deviation = (entropyRandom.nextFloat() - 0.5f) * 3.0f; // ±1.5°
             Rotation current_rot = ctx.playerRotations();
             behavior.baritone.getLookBehavior().updateTarget(
-                    new Rotation(current_rot.getYaw() + deviation, current_rot.getPitch()),
+                    new Rotation(current_rot.getYRot() + deviation, current_rot.getXRot()),
                     false);
         }
     }

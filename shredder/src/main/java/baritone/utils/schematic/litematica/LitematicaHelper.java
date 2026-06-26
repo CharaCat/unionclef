@@ -21,10 +21,10 @@ import baritone.utils.schematic.format.defaults.LitematicaSchematic;
 import fi.dy.masa.litematica.Litematica;
 import fi.dy.masa.litematica.data.DataManager;
 import java.io.File;
-import net.minecraft.block.BlockState;
-import net.minecraft.util.BlockMirror;
-import net.minecraft.util.BlockRotation;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.core.Vec3i;
 
 /**
  * Helper class that provides access or processes data related to Litmatica schematics.
@@ -81,7 +81,7 @@ public final class LitematicaHelper {
      * @param i index of the Schematic in the schematic placement list.
      * @return rotation of the schematic placement.
      */
-    public static BlockRotation getRotation(int i) {
+    public static Rotation getRotation(int i) {
         return DataManager.getSchematicPlacementManager().getAllSchematicsPlacements().get(i).getRotation();
     }
 
@@ -89,7 +89,7 @@ public final class LitematicaHelper {
      * @param i index of the Schematic in the schematic placement list.
      * @return the mirroring of the schematic placement.
      */
-    public static BlockMirror getMirror(int i) {
+    public static Mirror getMirror(int i) {
         return DataManager.getSchematicPlacementManager().getAllSchematicsPlacements().get(i).getMirror();
     }
 
@@ -109,8 +109,8 @@ public final class LitematicaHelper {
         int sz = (schematic.getZ() - 1) * -1;
 
         Vec3i correctedOrigin;
-        BlockMirror mirror = LitematicaHelper.getMirror(i);
-        BlockRotation rotation = LitematicaHelper.getRotation(i);
+        Mirror mirror = LitematicaHelper.getMirror(i);
+        Rotation rotation = LitematicaHelper.getRotation(i);
 
         //todo there has to be a better way to do this but i cant finde it atm
         switch (mirror) {
@@ -157,12 +157,12 @@ public final class LitematicaHelper {
      * @param mirror the mirroring of the schematic placement.
      * @return the corresponding xyz coordinates after mirroring them according to the given mirroring.
      */
-    public static Vec3i doMirroring(Vec3i in, int sizeX, int sizeZ, BlockMirror mirror) {
+    public static Vec3i doMirroring(Vec3i in, int sizeX, int sizeZ, Mirror mirror) {
         int xOut = in.getX();
         int zOut = in.getZ();
-        if (mirror == BlockMirror.LEFT_RIGHT) {
+        if (mirror == Mirror.LEFT_RIGHT) {
             zOut = sizeZ - in.getZ();
-        } else if (mirror == BlockMirror.FRONT_BACK) {
+        } else if (mirror == Mirror.FRONT_BACK) {
             xOut = sizeX - in.getX();
         }
         return new Vec3i(xOut, in.getY(), zOut);

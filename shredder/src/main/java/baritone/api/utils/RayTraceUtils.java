@@ -17,10 +17,10 @@
 
 package baritone.api.utils;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 
 /**
  * @author Brady
@@ -30,7 +30,7 @@ public final class RayTraceUtils {
 
     private RayTraceUtils() {}
 
-    public static RaycastContext.FluidHandling fluidHandling = RaycastContext.FluidHandling.NONE;
+    public static ClipContext.Fluid fluidHandling = ClipContext.Fluid.NONE;
 
     /**
      * Performs a block raytrace with the specified rotations. This should only be used when
@@ -47,23 +47,23 @@ public final class RayTraceUtils {
     }
 
     public static HitResult rayTraceTowards(Entity entity, Rotation rotation, double blockReachDistance, boolean wouldSneak) {
-        Vec3d start;
+        Vec3 start;
         if (wouldSneak) {
             start = inferSneakingEyePosition(entity);
         } else {
-            start = entity.getCameraPosVec(1.0F); // do whatever is correct
+            start = entity.getEyePosition(1.0F); // do whatever is correct
         }
-        
-        Vec3d direction = RotationUtils.calcLookDirectionFromRotation(rotation);
-        Vec3d end = start.add(
+
+        Vec3 direction = RotationUtils.calcLookDirectionFromRotation(rotation);
+        Vec3 end = start.add(
                 direction.x * blockReachDistance,
                 direction.y * blockReachDistance,
                 direction.z * blockReachDistance
         );
-        return entity.getEntityWorld().raycast(new RaycastContext(start, end, RaycastContext.ShapeType.OUTLINE, fluidHandling, entity));
+        return entity.level().clip(new ClipContext(start, end, ClipContext.Block.OUTLINE, fluidHandling, entity));
     }
 
-    public static Vec3d inferSneakingEyePosition(Entity entity) {
-        return new Vec3d(entity.getX(), entity.getY() + IPlayerContext.eyeHeight(true), entity.getZ());
+    public static Vec3 inferSneakingEyePosition(Entity entity) {
+        return new Vec3(entity.getX(), entity.getY() + IPlayerContext.eyeHeight(true), entity.getZ());
     }
 }

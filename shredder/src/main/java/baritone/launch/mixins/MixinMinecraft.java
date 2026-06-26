@@ -35,23 +35,23 @@ import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.BiFunction;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.world.ClientWorld;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 /**
  * @author Brady
  * @since 7/31/2018
  */
-@Mixin(MinecraftClient.class)
+@Mixin(Minecraft.class)
 public class MixinMinecraft {
 
     @Shadow
-    public ClientPlayerEntity player;
+    public LocalPlayer player;
     @Shadow
-    public ClientWorld world;
+    public ClientLevel level;
 
     @Unique
     private BiFunction<EventState, TickEvent.Type, TickEvent> tickProvider;
@@ -69,7 +69,7 @@ public class MixinMinecraft {
             at = @At(
                     value = "FIELD",
                     opcode = Opcodes.GETFIELD,
-                    target = "net/minecraft/client/MinecraftClient.currentScreen:Lnet/minecraft/client/gui/screen/Screen;",
+                    target = "net/minecraft/client/Minecraft.currentScreen:Lnet/minecraft/client/gui/screen/Screen;",
                     ordinal = 0,
                     shift = At.Shift.BEFORE
             ),
@@ -77,7 +77,7 @@ public class MixinMinecraft {
                     from = @At(
                             value = "FIELD",
                             opcode = Opcodes.PUTFIELD,
-                            target = "net/minecraft/client/MinecraftClient.attackCooldown:I"
+                            target = "net/minecraft/client/Minecraft.attackCooldown:I"
                     )
             )
     )
@@ -115,7 +115,7 @@ public class MixinMinecraft {
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "net/minecraft/client/world/ClientWorld.tickEntities()V",
+                    target = "net/minecraft/client/world/ClientLevel.tickEntities()V",
                     shift = At.Shift.AFTER
             )
     )
@@ -135,7 +135,7 @@ public class MixinMinecraft {
             at = @At(
                     value = "FIELD",
                     opcode = Opcodes.GETFIELD,
-                    target = "Lnet/minecraft/client/MinecraftClient;currentScreen:Lnet/minecraft/client/gui/screen/Screen;"
+                    target = "Lnet/minecraft/client/Minecraft;currentScreen:Lnet/minecraft/client/gui/screen/Screen;"
             ),
             slice = @Slice(
                     from = @At(
@@ -148,12 +148,12 @@ public class MixinMinecraft {
                     )
             )
     )
-    private Screen passEvents(MinecraftClient instance) {
+    private Screen passEvents(Minecraft instance) {
         // allow user input is only the primary baritone
         if (BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().isPathing() && player != null) {
             return null;
         }
-        return instance.currentScreen;
+        return null;
     }
 
     @Inject(
@@ -175,12 +175,12 @@ public class MixinMinecraft {
             method = "rightClickMouse",
             at = @At(
                     value = "INVOKE",
-                    target = "net/minecraft/client/entity/player/ClientPlayerEntity.swingArm(Lnet/minecraft/util/Hand;)V",
+                    target = "net/minecraft/client/entity/player/LocalPlayer.swingArm(Lnet/minecraft/util/InteractionHand;)V",
                     ordinal = 1
             ),
             locals = LocalCapture.CAPTURE_FAILHARD
     )
-    private void onBlockUse(CallbackInfo ci, Hand var1[], int var2, int var3, Hand enumhand, ItemStack itemstack, EntityRayTraceResult rt, Entity ent, ActionResultType art, BlockRayTraceResult raytrace, int i, ActionResultType enumactionresult) {
+    private void onBlockUse(CallbackInfo ci, InteractionHand var1[], int var2, int var3, InteractionHand enumhand, ItemStack itemstack, EntityRayTraceResult rt, Entity ent, ActionResultType art, BlockRayTraceResult raytrace, int i, ActionResultType enumactionresult) {
         // rightClickMouse is only for the main player
         BaritoneAPI.getProvider().getPrimaryBaritone().getGameEventHandler().onBlockInteract(new BlockInteractEvent(raytrace.getPos(), BlockInteractEvent.Type.USE));
     }*/

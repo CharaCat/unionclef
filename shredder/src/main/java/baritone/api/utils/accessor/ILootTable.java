@@ -18,8 +18,8 @@
 package baritone.api.utils.accessor;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.item.ItemStack;
-import net.minecraft.loot.context.LootContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.loot.LootContext;
 
 public interface ILootTable {
 

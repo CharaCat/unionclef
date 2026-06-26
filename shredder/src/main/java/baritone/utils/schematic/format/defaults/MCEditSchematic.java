@@ -18,12 +18,9 @@
 package baritone.utils.schematic.format.defaults;
 
 import baritone.utils.schematic.StaticSchematic;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.datafixer.fix.ItemIdFix;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Block;
 
 /**
  * @author Brady
@@ -31,7 +28,7 @@ import net.minecraft.util.Identifier;
  */
 public final class MCEditSchematic extends StaticSchematic {
 
-    public MCEditSchematic(NbtCompound schematic) {
+    public MCEditSchematic(CompoundTag schematic) {
         String type = schematic.getString("Materials").orElseThrow();
         if (!type.equals("Alpha")) {
             throw new IllegalStateException("bad schematic " + type);
@@ -62,10 +59,9 @@ public final class MCEditSchematic extends StaticSchematic {
                         // additional is 0 through 15 inclusive since it's & 0xF above
                         blockID |= additional[blockInd] << 8;
                     }
-                    Block block = Registries.BLOCK.get(Identifier.tryParse(ItemIdFix.fromId(blockID)));
 //                    int meta = metadata[blockInd] & 0xFF;
 //                    this.states[x][z][y] = block.getStateFromMeta(meta);
-                    this.states[x][z][y] = block.getDefaultState();
+                    this.states[x][z][y] = Block.stateById(blockID);
                 }
             }
         }

@@ -28,7 +28,7 @@ import baritone.api.process.PathingCommandType;
 import baritone.behavior.PathingBehavior;
 import baritone.pathing.path.PathExecutor;
 import java.util.*;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 
 public class PathingControlManager implements IPathingControlManager {
 

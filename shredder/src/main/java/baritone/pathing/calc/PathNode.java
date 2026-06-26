@@ -111,4 +111,8 @@ public final class PathNode {
 
         return x == other.x && y == other.y && z == other.z;
     }
+
+    public int x() { return x; }
+    public int y() { return y; }
+    public int z() { return z; }
 }

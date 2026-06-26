@@ -21,11 +21,9 @@ import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
 import baritone.api.event.events.RenderEvent;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.util.ObjectAllocator;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.LevelRenderer;
+import com.mojang.blaze3d.vertex.PoseStack;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,18 +35,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author Brady
  * @since 2/13/2020
  */
-@Mixin(WorldRenderer.class)
-public class MixinWorldRenderer {
+@Mixin(LevelRenderer.class)
+public class MixinLevelRenderer {
 
     @Inject(
             method = "render",
             at = @At("RETURN")
     )
-    private void onStartHand(final ObjectAllocator objectAllocator, final RenderTickCounter deltaTracker, final boolean bl, final Camera camera, final Matrix4f matrix4f, final Matrix4f matrix4f2, final Matrix4f matrix4f3, final GpuBufferSlice gpuBufferSlice, final Vector4f vector4f, final boolean bl2, final CallbackInfo ci) {
+    private void onStartHand(final Object objectAllocator, final Object deltaTracker, final boolean bl, final Camera camera, final Matrix4f matrix4f, final Matrix4f matrix4f2, final Matrix4f matrix4f3, final GpuBufferSlice gpuBufferSlice, final Vector4f vector4f, final boolean bl2, final CallbackInfo ci) {
         for (IBaritone ibaritone : BaritoneAPI.getProvider().getAllBaritones()) {
-            MatrixStack poseStack = new MatrixStack();
-            poseStack.multiplyPositionMatrix(matrix4f);
-            ibaritone.getGameEventHandler().onRenderPass(new RenderEvent(deltaTracker.getTickProgress(false), poseStack, matrix4f2));
+            PoseStack poseStack = new PoseStack();
+            poseStack.mulPose(matrix4f);
+            ibaritone.getGameEventHandler().onRenderPass(new RenderEvent(0.0F, poseStack, matrix4f2));
         }
     }
 }

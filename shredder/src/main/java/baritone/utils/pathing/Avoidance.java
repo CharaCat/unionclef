@@ -24,11 +24,11 @@ import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import net.minecraft.entity.mob.EndermanEntity;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.SpiderEntity;
-import net.minecraft.entity.mob.ZombifiedPiglinEntity;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.spider.Spider;
+import net.minecraft.world.entity.monster.zombie.ZombifiedPiglin;
+import net.minecraft.core.BlockPos;
 
 public class Avoidance {
 
@@ -67,16 +67,16 @@ public class Avoidance {
         double mobSpawnerCoeff = Baritone.settings().mobSpawnerAvoidanceCoefficient.value;
         double mobCoeff = Baritone.settings().mobAvoidanceCoefficient.value;
         if (mobSpawnerCoeff != 1.0D) {
-            ctx.worldData().getCachedWorld().getLocationsOf("mob_spawner", 1, ctx.playerFeet().x, ctx.playerFeet().z, 2)
+            ctx.worldData().getCachedWorld().getLocationsOf("mob_spawner", 1, ctx.playerFeet().x(), ctx.playerFeet().z(), 2)
                     .forEach(mobspawner -> res.add(new Avoidance(mobspawner, mobSpawnerCoeff, Baritone.settings().mobSpawnerAvoidanceRadius.value)));
         }
         if (mobCoeff != 1.0D) {
             ctx.entitiesStream()
-                    .filter(entity -> entity instanceof MobEntity)
-                    .filter(entity -> (!(entity instanceof SpiderEntity)) || ctx.player().getBrightnessAtEyes() < 0.5)
-                    .filter(entity -> !(entity instanceof ZombifiedPiglinEntity) || ((ZombifiedPiglinEntity) entity).getAttacker() != null)
-                    .filter(entity -> !(entity instanceof EndermanEntity) || ((EndermanEntity) entity).isAngry())
-                    .forEach(entity -> res.add(new Avoidance(entity.getBlockPos(), mobCoeff, Baritone.settings().mobAvoidanceRadius.value)));
+                    .filter(entity -> entity instanceof Mob)
+                    .filter(entity -> (!(entity instanceof Spider)) || ctx.player().getLightLevelDependentMagicValue() < 0.5)
+                    .filter(entity -> !(entity instanceof ZombifiedPiglin) || ((ZombifiedPiglin) entity).getTarget() != null)
+                    .filter(entity -> !(entity instanceof EnderMan) || ((EnderMan) entity).isAngry())
+                    .forEach(entity -> res.add(new Avoidance(entity.blockPosition(), mobCoeff, Baritone.settings().mobAvoidanceRadius.value)));
         }
         return res;
     }

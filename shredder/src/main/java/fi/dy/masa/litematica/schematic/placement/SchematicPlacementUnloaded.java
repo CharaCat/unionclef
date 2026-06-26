@@ -18,14 +18,14 @@
 package fi.dy.masa.litematica.schematic.placement;
 
 import javax.annotation.Nullable;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import java.io.File;
 
 public class SchematicPlacementUnloaded {
     protected String name = "?";
     @Nullable
     protected File schematicFile;
-    protected BlockPos origin = BlockPos.ORIGIN;
+    protected BlockPos origin = BlockPos.ZERO;
 
     public String getName() {
         return this.name;

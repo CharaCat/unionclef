@@ -47,12 +47,12 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 
 public class SelCommand extends Command {
 
@@ -74,7 +74,7 @@ public class SelCommand extends Command {
                 float lineWidth = Baritone.settings().selectionLineWidth.value;
                 boolean ignoreDepth = Baritone.settings().renderSelectionIgnoreDepth.value;
                 BufferBuilder bufferBuilder = IRenderer.startLines(color, opacity);
-                IRenderer.emitAABB(bufferBuilder, event.getModelViewStack(), new Box(pos1), lineWidth);
+                IRenderer.emitAABB(bufferBuilder, event.getModelViewStack(), new AABB(pos1), lineWidth);
                 IRenderer.endLines(bufferBuilder, ignoreDepth);
             }
         });
@@ -154,9 +154,9 @@ public class SelCommand extends Command {
             for (ISelection selection : selections) {
                 BetterBlockPos min = selection.min();
                 origin = new BetterBlockPos(
-                        Math.min(origin.x, min.x),
+                        Math.min(origin.x(), min.x()),
                         Math.min(origin.y, min.y),
-                        Math.min(origin.z, min.z)
+                        Math.min(origin.z(), min.z())
                 );
             }
             for (ISelection selection : selections) {
@@ -191,7 +191,7 @@ public class SelCommand extends Command {
                 };
 
                 ISchematic schematic = create.apply(new FillSchematic(size.getX(), size.getY(), size.getZ(), type));
-                composite.put(schematic, min.x - origin.x, min.y - origin.y, min.z - origin.z);
+                composite.put(schematic, min.x - origin.x(), min.y - origin.y, min.z - origin.z());
             }
             baritone.getBuilderProcess().build("Fill", composite, origin);
             logDirect("Filling now");
@@ -209,9 +209,9 @@ public class SelCommand extends Command {
             for (ISelection selection : selections) {
                 BetterBlockPos min = selection.min();
                 origin = new BetterBlockPos(
-                        Math.min(origin.x, min.x),
+                        Math.min(origin.x(), min.x()),
                         Math.min(origin.y, min.y),
-                        Math.min(origin.z, min.z)
+                        Math.min(origin.z(), min.z())
                 );
             }
             for (ISelection selection : selections) {
@@ -231,7 +231,7 @@ public class SelCommand extends Command {
                     y = size.getY();
                     z = size.getZ();
                 }};
-                composite.put(schematic, min.x - origin.x, min.y - origin.y, min.z - origin.z);
+                composite.put(schematic, min.x - origin.x(), min.y - origin.y, min.z - origin.z());
             }
             clipboard = composite;
             clipboardOffset = origin.subtract(pos);

@@ -19,15 +19,15 @@ package baritone.pathing.precompute;
 
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.BlockStateInterface;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 
 import static baritone.pathing.precompute.Ternary.MAYBE;
 import static baritone.pathing.precompute.Ternary.YES;
 
 public class PrecomputedData {
 
-    private final int[] data = new int[Block.STATE_IDS.size()];
+    private final int[] data = new int[Block.BLOCK_STATE_REGISTRY.size()];
 
     private static final int COMPLETED_MASK = 1 << 0;
     private static final int CAN_WALK_ON_MASK = 1 << 1;
@@ -71,7 +71,7 @@ public class PrecomputedData {
     }
 
     public boolean canWalkOn(BlockStateInterface bsi, int x, int y, int z, BlockState state) {
-        int id = Block.STATE_IDS.getRawId(state);
+        int id = Block.BLOCK_STATE_REGISTRY.getId(state);
         int blockData = data[id];
 
         if ((blockData & COMPLETED_MASK) == 0) { // we need to fill in the data
@@ -86,7 +86,7 @@ public class PrecomputedData {
     }
 
     public boolean canWalkThrough(BlockStateInterface bsi, int x, int y, int z, BlockState state) {
-        int id = Block.STATE_IDS.getRawId(state);
+        int id = Block.BLOCK_STATE_REGISTRY.getId(state);
         int blockData = data[id];
 
         if ((blockData & COMPLETED_MASK) == 0) { // we need to fill in the data
@@ -101,7 +101,7 @@ public class PrecomputedData {
     }
 
     public boolean fullyPassable(BlockStateInterface bsi, int x, int y, int z, BlockState state) {
-        int id = Block.STATE_IDS.getRawId(state);
+        int id = Block.BLOCK_STATE_REGISTRY.getId(state);
         int blockData = data[id];
 
         if ((blockData & COMPLETED_MASK) == 0) { // we need to fill in the data

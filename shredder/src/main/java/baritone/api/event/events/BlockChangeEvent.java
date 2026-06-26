@@ -19,9 +19,9 @@ package baritone.api.event.events;
 
 import baritone.api.utils.Pair;
 import java.util.List;
-import net.minecraft.block.BlockState;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
 
 /**
  * @author Brady

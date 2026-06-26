@@ -18,10 +18,9 @@
 package baritone.utils;
 
 import baritone.api.utils.input.Input;
-import net.minecraft.util.PlayerInput;
-import net.minecraft.util.math.Vec2f;
+import net.minecraft.world.phys.Vec2;
 
-public class PlayerMovementInput extends net.minecraft.client.input.Input {
+public class PlayerMovementInput extends net.minecraft.client.player.ClientInput {
 
     private final InputOverrideHandler handler;
 
@@ -60,10 +59,10 @@ public class PlayerMovementInput extends net.minecraft.client.input.Input {
             leftImpulse *= 0.3D;
             forwardImpulse *= 0.3D;
         }
-        this.movementVector = new Vec2f(leftImpulse, forwardImpulse);
+        this.moveVector = new Vec2(leftImpulse, forwardImpulse);
 
         boolean sprinting = handler.isInputForcedDown(Input.SPRINT);
 
-        this.playerInput = new PlayerInput(up, down, left, right, jumping, sneaking, sprinting);
+        this.keyPresses = new net.minecraft.world.entity.player.Input(up, down, left, right, jumping, sneaking, sprinting);
     }
 }

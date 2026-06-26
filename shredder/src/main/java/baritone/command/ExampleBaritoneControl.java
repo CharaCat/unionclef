@@ -34,12 +34,12 @@ import baritone.command.argument.ArgConsumer;
 import baritone.command.argument.CommandArguments;
 import baritone.command.manager.CommandManager;
 import baritone.utils.accessor.IGuiScreen;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Pair;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.util.Util;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -68,7 +68,7 @@ public class ExampleBaritoneControl extends Behavior implements Helper {
             event.cancel();
             String commandStr = msg.substring(forceRun ? FORCE_COMMAND_PREFIX.length() : prefix.length());
             if (!runCommand(commandStr) && !commandStr.trim().isEmpty()) {
-                new CommandNotFoundException(CommandManager.expand(commandStr).getLeft()).handle(null, null);
+                new CommandNotFoundException(CommandManager.expand(commandStr).getFirst()).handle(null, null);
             }
         } else if ((settings.chatControl.value || settings.chatControlAnyway.value) && runCommand(msg)) {
             event.cancel();
@@ -79,11 +79,11 @@ public class ExampleBaritoneControl extends Behavior implements Helper {
         if (settings.echoCommands.value) {
             String msg = command + rest;
             String toDisplay = settings.censorRanCommands.value ? command + " ..." : msg;
-            MutableText component = Text.literal(String.format("> %s", toDisplay));
+            MutableComponent component = Component.literal(String.format("> %s", toDisplay));
             component.setStyle(component.getStyle()
-                    .withColor(Formatting.WHITE)
+                    .withColor(ChatFormatting.WHITE)
                     .withHoverEvent(new HoverEvent.ShowText(
-                            Text.literal("Click to rerun command")
+                            Component.literal("Click to rerun command")
                     ))
                     .withClickEvent(new ClickEvent.RunCommand(
                             FORCE_COMMAND_PREFIX + msg
@@ -98,7 +98,7 @@ public class ExampleBaritoneControl extends Behavior implements Helper {
             return false;
         } else if (msg.trim().equalsIgnoreCase("orderpizza")) {
             try {
-                Util.getOperatingSystem().open("https://www.dominos.com/en/pages/order/");
+                Util.getPlatform().openUri("https://www.dominos.com/en/pages/order/");
             } catch (Exception ignored) {}
             return false;
         }
@@ -106,9 +106,9 @@ public class ExampleBaritoneControl extends Behavior implements Helper {
             return this.runCommand("help");
         }
         Pair<String, List<ICommandArgument>> pair = CommandManager.expand(msg);
-        String command = pair.getLeft();
-        String rest = msg.substring(pair.getLeft().length());
-        ArgConsumer argc = new ArgConsumer(this.manager, pair.getRight());
+        String command = pair.getFirst();
+        String rest = msg.substring(pair.getFirst().length());
+        ArgConsumer argc = new ArgConsumer(this.manager, pair.getSecond());
         if (!argc.hasAny()) {
             Settings.Setting setting = settings.byLowerName.get(command.toLowerCase(Locale.US));
             if (setting != null) {
@@ -125,7 +125,7 @@ public class ExampleBaritoneControl extends Behavior implements Helper {
                 if (setting.isJavaOnly()) {
                     continue;
                 }
-                if (setting.getName().equalsIgnoreCase(pair.getLeft())) {
+                if (setting.getName().equalsIgnoreCase(pair.getFirst())) {
                     logRanCommand(command, rest);
                     try {
                         this.manager.execute(String.format("set %s %s", setting.getName(), argc.getString()));
@@ -136,7 +136,7 @@ public class ExampleBaritoneControl extends Behavior implements Helper {
         }
 
         // If the command exists, then handle echoing the input
-        if (this.manager.getCommand(pair.getLeft()) != null) {
+        if (this.manager.getCommand(pair.getFirst()) != null) {
             logRanCommand(command, rest);
         }
 

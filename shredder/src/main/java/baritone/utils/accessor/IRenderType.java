@@ -17,9 +17,9 @@
 
 package baritone.utils.accessor;
 
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
 
 public interface IRenderType {
-    RenderLayer createRenderType(String name, RenderSetup renderSetup);
+    RenderType createRenderType(String name, RenderSetup renderSetup);
 }

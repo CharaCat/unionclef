@@ -38,13 +38,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.minecraft.block.Block;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.Item;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 
 public class SettingsUtil {
 
@@ -106,7 +106,7 @@ public class SettingsUtil {
     }
 
     private static Path settingsByName(String name) {
-        return MinecraftClient.getInstance().runDirectory.toPath().resolve("baritone").resolve(name);
+        return Minecraft.getInstance().gameDirectory.toPath().resolve("baritone").resolve(name);
     }
 
     public static List<Settings.Setting> modifiedSettings(Settings settings) {
@@ -222,7 +222,7 @@ public class SettingsUtil {
         DIRECTION(
                 Direction.class,
                 str -> {
-                    Direction direction = Direction.CODEC.byId(str);
+                    Direction direction = Direction.byName(str);
                     if (direction == null) {
                         throw new IllegalArgumentException("no direction found by that name");
                     }
@@ -246,9 +246,9 @@ public class SettingsUtil {
         ),
         ITEM(
                 Item.class,
-                str -> Registries.ITEM.getOptionalValue(Identifier.of(str.trim()))
+                str -> BuiltInRegistries.ITEM.getOptional(Identifier.parse(str.trim()))
                         .orElseThrow(() -> new IllegalArgumentException("no item found by that id")),
-                item -> Registries.ITEM.getId(item).toString()
+                item -> BuiltInRegistries.ITEM.getKey(item).toString()
         ),
         LIST() {
             @Override

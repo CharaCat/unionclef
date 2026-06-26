@@ -2,9 +2,9 @@ package baritone.selection;
 
 import baritone.api.selection.ISelection;
 import baritone.api.utils.BetterBlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 
 public class Selection implements ISelection {
 
@@ -13,22 +13,22 @@ public class Selection implements ISelection {
     private final BetterBlockPos min;
     private final BetterBlockPos max;
     private final Vec3i size;
-    private final Box aabb;
+    private final AABB aabb;
 
     public Selection(BetterBlockPos pos1, BetterBlockPos pos2) {
         this.pos1 = pos1;
         this.pos2 = pos2;
 
         this.min = new BetterBlockPos(
-                Math.min(pos1.x, pos2.x),
+                Math.min(pos1.x(), pos2.x()),
                 Math.min(pos1.y, pos2.y),
-                Math.min(pos1.z, pos2.z)
+                Math.min(pos1.z(), pos2.z())
         );
 
         this.max = new BetterBlockPos(
-                Math.max(pos1.x, pos2.x),
+                Math.max(pos1.x(), pos2.x()),
                 Math.max(pos1.y, pos2.y),
-                Math.max(pos1.z, pos2.z)
+                Math.max(pos1.z(), pos2.z())
         );
 
         this.size = new Vec3i(
@@ -37,7 +37,7 @@ public class Selection implements ISelection {
                 max.z - min.z + 1
         );
 
-        this.aabb = new Box(this.min);
+        this.aabb = new AABB(this.min);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class Selection implements ISelection {
     }
 
     @Override
-    public Box aabb() {
+    public AABB aabb() {
         return aabb;
     }
 
@@ -91,15 +91,15 @@ public class Selection implements ISelection {
      * else if they're both at the same position on that axis (it really doesn't matter)
      */
     private boolean isPos2(Direction facing) {
-        boolean negative = facing.getDirection().offset() < 0;
+        boolean negative = facing.getAxisDirection().getStep() < 0;
 
         switch (facing.getAxis()) {
             case X:
-                return (pos2.x > pos1.x) ^ negative;
+                return (pos2.x > pos1.x()) ^ negative;
             case Y:
                 return (pos2.y > pos1.y) ^ negative;
             case Z:
-                return (pos2.z > pos1.z) ^ negative;
+                return (pos2.z > pos1.z()) ^ negative;
             default:
                 throw new IllegalStateException("Bad Direction.Axis");
         }
@@ -108,23 +108,23 @@ public class Selection implements ISelection {
     @Override
     public ISelection expand(Direction direction, int blocks) {
         if (isPos2(direction)) {
-            return new Selection(pos1, pos2.offset(direction, blocks));
+            return new Selection(pos1, pos2.add(direction, blocks));
         } else {
-            return new Selection(pos1.offset(direction, blocks), pos2);
+            return new Selection(pos1.add(direction, blocks), pos2);
         }
     }
 
     @Override
     public ISelection contract(Direction direction, int blocks) {
         if (isPos2(direction)) {
-            return new Selection(pos1.offset(direction, blocks), pos2);
+            return new Selection(pos1.add(direction, blocks), pos2);
         } else {
-            return new Selection(pos1, pos2.offset(direction, blocks));
+            return new Selection(pos1, pos2.add(direction, blocks));
         }
     }
 
     @Override
     public ISelection shift(Direction direction, int blocks) {
-        return new Selection(pos1.offset(direction, blocks), pos2.offset(direction, blocks));
+        return new Selection(pos1.add(direction, blocks), pos2.add(direction, blocks));
     }
 }

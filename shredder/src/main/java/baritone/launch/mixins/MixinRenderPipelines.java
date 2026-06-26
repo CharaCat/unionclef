@@ -19,7 +19,7 @@ package baritone.launch.mixins;
 
 import baritone.utils.accessor.IRenderPipelines;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.renderer.RenderPipelines;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

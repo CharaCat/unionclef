@@ -18,9 +18,9 @@
 package baritone.api.event.events;
 
 import baritone.api.utils.Rotation;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * @author Brady
@@ -65,10 +65,18 @@ public final class RotationMoveEvent {
         this.yaw = yaw;
     }
 
+    public void setYRot(float yaw) {
+        this.yaw = yaw;
+    }
+
     /**
      * @return The yaw rotation
      */
     public float getYaw() {
+        return this.yaw;
+    }
+
+    public float getYRot() {
         return this.yaw;
     }
 
@@ -81,10 +89,18 @@ public final class RotationMoveEvent {
         this.pitch = pitch;
     }
 
+    public void setXRot(float pitch) {
+        this.pitch = pitch;
+    }
+
     /**
      * @return The pitch rotation
      */
     public float getPitch() {
+        return pitch;
+    }
+
+    public float getXRot() {
         return pitch;
     }
 
@@ -100,7 +116,7 @@ public final class RotationMoveEvent {
         /**
          * Called when the player's motion is updated.
          *
-         * @see Entity#updateVelocity(float, Vec3d)
+         * @see Entity#updateVelocity(float, Vec3)
          */
         MOTION_UPDATE,
 

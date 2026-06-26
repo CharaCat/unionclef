@@ -23,19 +23,19 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.OptionalInt;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.data.TrackedData;
-import net.minecraft.entity.projectile.FireworkRocketEntity;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.level.Level;
 
 @Mixin(FireworkRocketEntity.class)
 public abstract class MixinFireworkRocketEntity extends Entity implements IFireworkRocketEntity {
 
     @Shadow
     @Final
-    private static TrackedData<OptionalInt> SHOOTER_ENTITY_ID;
+    private static EntityDataAccessor<OptionalInt> SHOOTER_ENTITY_ID;
 
     @Shadow
     private LivingEntity shooter;
@@ -43,14 +43,14 @@ public abstract class MixinFireworkRocketEntity extends Entity implements IFirew
     @Shadow
     public abstract boolean wasShotByEntity();
 
-    private MixinFireworkRocketEntity(World level) {
-        super(EntityType.FIREWORK_ROCKET, level);
+    private MixinFireworkRocketEntity(Level level) {
+        super(null, level);
     }
 
     @Override
     public LivingEntity getBoostedEntity() {
         if (this.wasShotByEntity() && this.shooter == null) {
-            final Entity entity = this.getEntityWorld().getEntityById(this.dataTracker.get(SHOOTER_ENTITY_ID).getAsInt());
+            final Entity entity = this.level().getEntity(this.entityData.get(SHOOTER_ENTITY_ID).getAsInt());
             if (entity instanceof LivingEntity) {
                 this.shooter = (LivingEntity) entity;
             }

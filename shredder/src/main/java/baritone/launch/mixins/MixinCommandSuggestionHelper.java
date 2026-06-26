@@ -34,24 +34,24 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.minecraft.client.gui.screen.ChatInputSuggestor;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.OrderedText;
+import net.minecraft.client.gui.components.CommandSuggestions;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.util.FormattedCharSequence;
 
 /**
  * @author Brady
  * @since 10/9/2019
  */
-@Mixin(ChatInputSuggestor.class)
+@Mixin(CommandSuggestions.class)
 public class MixinCommandSuggestionHelper {
 
     @Shadow
     @Final
-    TextFieldWidget textField;
+    EditBox textField;
 
     @Shadow
     @Final
-    private List<OrderedText> messages;
+    private List<FormattedCharSequence> messages;
 
     @Shadow
     private ParseResults parse;
@@ -60,7 +60,7 @@ public class MixinCommandSuggestionHelper {
     private CompletableFuture<Suggestions> pendingSuggestions;
 
     @Shadow
-    private ChatInputSuggestor.SuggestionWindow window;
+    private CommandSuggestions.SuggestionsList window;
 
     @Shadow
     boolean completingSuggestions;
@@ -72,7 +72,7 @@ public class MixinCommandSuggestionHelper {
     )
     private void preUpdateSuggestion(CallbackInfo ci) {
         // Anything that is present in the input text before the cursor position
-        String prefix = this.textField.getText().substring(0, Math.min(this.textField.getText().length(), this.textField.getCursor()));
+        String prefix = this.textField.getValue().substring(0, Math.min(this.textField.getValue().length(), this.textField.getCursorPosition()));
 
         TabCompleteEvent event = new TabCompleteEvent(prefix);
         BaritoneAPI.getProvider().getPrimaryBaritone().getGameEventHandler().onPreTabComplete(event);
@@ -110,7 +110,7 @@ public class MixinCommandSuggestionHelper {
                 this.pendingSuggestions = new CompletableFuture<>();
                 this.pendingSuggestions.complete(suggestions);
             }
-            ((ChatInputSuggestor) (Object) this).show(true); // actually populate the suggestions list from the suggestions future
+            ((CommandSuggestions) (Object) this).showSuggestions(true); // actually populate the suggestions list from the suggestions future
         }
     }
 }

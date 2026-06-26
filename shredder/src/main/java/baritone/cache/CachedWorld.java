@@ -33,12 +33,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.WorldChunk;
-import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.dimension.DimensionType;
 
 /**
  * @author Brady
@@ -71,13 +71,13 @@ public final class CachedWorld implements ICachedWorld, Helper {
      * All chunk positions pending packing. This map will be updated in-place if a new update to the chunk occurs
      * while waiting in the queue for the packer thread to get to it.
      */
-    private final Map<ChunkPos, WorldChunk> toPackMap = CacheBuilder.newBuilder().softValues().<ChunkPos, WorldChunk>build().asMap();
+    private final Map<ChunkPos, LevelChunk> toPackMap = CacheBuilder.newBuilder().softValues().<ChunkPos, LevelChunk>build().asMap();
 
     private final DimensionType dimension;
 
-    private final RegistryKey<World> dimensionId;
+    private final ResourceKey<Level> dimensionId;
 
-    CachedWorld(Path directory, DimensionType dimension, RegistryKey<World> dimensionId) {
+    CachedWorld(Path directory, DimensionType dimension, ResourceKey<Level> dimensionId) {
         if (!Files.exists(directory)) {
             try {
                 Files.createDirectories(directory);
@@ -106,7 +106,7 @@ public final class CachedWorld implements ICachedWorld, Helper {
     }
 
     @Override
-    public final void queueForPacking(WorldChunk chunk) {
+    public final void queueForPacking(LevelChunk chunk) {
         if (toPackMap.put(chunk.getPos(), chunk) == null) {
             toPackQueue.add(chunk.getPos());
         }
@@ -180,7 +180,7 @@ public final class CachedWorld implements ICachedWorld, Helper {
             }
         });
         long now = System.nanoTime() / 1000000L;
-        System.out.println("World save took " + (now - start) + "ms");
+        System.out.println("Level save took " + (now - start) + "ms");
         prune();
     }
 
@@ -248,7 +248,7 @@ public final class CachedWorld implements ICachedWorld, Helper {
             }
         });
         long now = System.nanoTime() / 1000000L;
-        System.out.println("World load took " + (now - start) + "ms");
+        System.out.println("Level load took " + (now - start) + "ms");
     }
 
     @Override
@@ -309,13 +309,13 @@ public final class CachedWorld implements ICachedWorld, Helper {
             while (true) {
                 try {
                     ChunkPos pos = toPackQueue.take();
-                    WorldChunk chunk = toPackMap.remove(pos);
+                    LevelChunk chunk = toPackMap.remove(pos);
                     if (toPackQueue.size() > Baritone.settings().chunkPackerQueueMaxSize.value) {
                         continue;
                     }
                     CachedChunk cached = ChunkPacker.pack(chunk);
                     CachedWorld.this.updateCachedChunk(cached);
-                    //System.out.println("Processed chunk at " + chunk.x + "," + chunk.z);
+                    //System.out.println("Processed chunk at " + chunk.x + "," + chunk.z());
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     break;

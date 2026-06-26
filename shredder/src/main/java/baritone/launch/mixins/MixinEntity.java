@@ -19,8 +19,8 @@ package baritone.launch.mixins;
 
 import baritone.api.BaritoneAPI;
 import baritone.api.event.events.RotationMoveEvent;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -46,13 +46,13 @@ public class MixinEntity {
     )
     private void moveRelativeHead(CallbackInfo info) {
         // noinspection ConstantConditions
-        if (!ClientPlayerEntity.class.isInstance(this) || BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this) == null) {
+        if (!LocalPlayer.class.isInstance(this) || BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this) == null) {
             return;
         }
         this.motionUpdateRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.MOTION_UPDATE, this.yaw, this.pitch);
-        BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this).getGameEventHandler().onPlayerRotationMove(motionUpdateRotationEvent);
-        this.yaw = this.motionUpdateRotationEvent.getYaw();
-        this.pitch = this.motionUpdateRotationEvent.getPitch();
+        BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this).getGameEventHandler().onPlayerRotationMove(motionUpdateRotationEvent);
+        this.yaw = this.motionUpdateRotationEvent.getYRot();
+        this.pitch = this.motionUpdateRotationEvent.getXRot();
     }
 
     @Inject(
@@ -61,8 +61,8 @@ public class MixinEntity {
     )
     private void moveRelativeReturn(CallbackInfo info) {
         if (this.motionUpdateRotationEvent != null) {
-            this.yaw = this.motionUpdateRotationEvent.getOriginal().getYaw();
-            this.pitch = this.motionUpdateRotationEvent.getOriginal().getPitch();
+            this.yaw = this.motionUpdateRotationEvent.getOriginal().getYRot();
+            this.pitch = this.motionUpdateRotationEvent.getOriginal().getXRot();
             this.motionUpdateRotationEvent = null;
         }
     }

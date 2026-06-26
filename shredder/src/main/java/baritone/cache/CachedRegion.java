@@ -27,11 +27,11 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import net.minecraft.block.BlockState;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
 
 /**
  * @author Brady
@@ -64,14 +64,14 @@ public final class CachedRegion implements ICachedRegion {
 
     private final DimensionType dimension;
 
-    private final RegistryKey<World> dimensionId;
+    private final ResourceKey<Level> dimensionId;
 
     /**
      * Has this region been modified since its most recent load or save
      */
     private boolean hasUnsavedChanges;
 
-    CachedRegion(int x, int z, DimensionType dimension, RegistryKey<World> dimensionId) {
+    CachedRegion(int x, int z, DimensionType dimension, ResourceKey<Level> dimensionId) {
         this.x = x;
         this.z = z;
         this.hasUnsavedChanges = false;
@@ -128,7 +128,7 @@ public final class CachedRegion implements ICachedRegion {
 
             }
             System.out.println("Saving region " + x + "," + z + " to disk " + path);
-            Path regionFile = getRegionFile(path, this.x, this.z);
+            Path regionFile = getRegionFile(path, this.x(), this.z());
             if (!Files.exists(regionFile)) {
                 Files.createFile(regionFile);
             }
@@ -199,7 +199,7 @@ public final class CachedRegion implements ICachedRegion {
                 Files.createDirectories(path);
             }
 
-            Path regionFile = getRegionFile(path, this.x, this.z);
+            Path regionFile = getRegionFile(path, this.x(), this.z());
             if (!Files.exists(regionFile)) {
                 return;
             }
@@ -248,7 +248,7 @@ public final class CachedRegion implements ICachedRegion {
                     for (int z = 0; z < 32; z++) {
                         if (present[x][z]) {
                             for (int i = 0; i < 256; i++) {
-                                overview[x][z][i] = BlockUtils.stringToBlockRequired(in.readUTF()).getDefaultState();
+                                overview[x][z][i] = BlockUtils.stringToBlockRequired(in.readUTF()).defaultBlockState();
                             }
                         }
                     }
@@ -321,7 +321,7 @@ public final class CachedRegion implements ICachedRegion {
         for (int x = 0; x < 32; x++) {
             for (int z = 0; z < 32; z++) {
                 if (this.chunks[x][z] != null && this.chunks[x][z].cacheTimestamp < oldestAcceptableAge) {
-                    System.out.println("Removing chunk " + (x + 32 * this.x) + "," + (z + 32 * this.z) + " because it was cached " + (now - this.chunks[x][z].cacheTimestamp) / 1000L + " seconds ago, and max age is " + expiry);
+                    System.out.println("Removing chunk " + (x + 32 * this.x()) + "," + (z + 32 * this.z()) + " because it was cached " + (now - this.chunks[x][z].cacheTimestamp) / 1000L + " seconds ago, and max age is " + expiry);
                     this.chunks[x][z] = null;
                 }
             }
@@ -362,4 +362,7 @@ public final class CachedRegion implements ICachedRegion {
     private static Path getRegionFile(Path cacheDir, int regionX, int regionZ) {
         return Paths.get(cacheDir.toString(), "r." + regionX + "." + regionZ + ".bcr");
     }
+
+    public int x() { return x; }
+    public int z() { return z; }
 }

@@ -30,4 +30,8 @@ public class CompositeSchematicEntry {
         this.y = y;
         this.z = z;
     }
+
+    public int x() { return x; }
+    public int y() { return y; }
+    public int z() { return z; }
 }

@@ -29,7 +29,7 @@ import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
 /**
  * The {@link TabCompleteHelper} is a <b>single-use</b> object that helps you handle tab completion. It includes helper
@@ -212,7 +212,7 @@ public class TabCompleteHelper {
      * @return This {@link TabCompleteHelper}
      */
     public TabCompleteHelper filterPrefixNamespaced(String prefix) {
-        return filterPrefix(Identifier.of(prefix).toString());
+        return filterPrefix(Identifier.parse(prefix).toString());
     }
 
     /**

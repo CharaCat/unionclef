@@ -21,16 +21,16 @@ import baritone.api.cache.IWorldData;
 import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import net.minecraft.block.SlabBlock;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 
 /**
  * @author Brady
@@ -38,16 +38,16 @@ import net.minecraft.world.World;
  */
 public interface IPlayerContext {
 
-    MinecraftClient minecraft();
+    Minecraft minecraft();
 
-    ClientPlayerEntity player();
+    LocalPlayer player();
 
     IPlayerController playerController();
 
-    World world();
+    Level world();
 
     default Iterable<Entity> entities() {
-        return ((ClientWorld) world()).getEntities();
+        return ((ClientLevel) world()).entitiesForRendering();
     }
 
     default Stream<Entity> entitiesStream() {
@@ -61,7 +61,7 @@ public interface IPlayerContext {
 
     default BetterBlockPos playerFeet() {
         // TODO find a better way to deal with soul sand!!!!!
-        BetterBlockPos feet = new BetterBlockPos(player().getEntityPos().x, player().getEntityPos().y + 0.1251, player().getEntityPos().z);
+        BetterBlockPos feet = new BetterBlockPos(player().position().x(), player().position().y + 0.1251, player().position().z());
 
         // sometimes when calling this from another thread or while world is null, it'll throw a NullPointerException
         // that causes the game to immediately crash
@@ -73,29 +73,29 @@ public interface IPlayerContext {
         // if there is an exception, the only overhead is Java generating the exception object... so we can ignore it
         try {
             if (world().getBlockState(feet).getBlock() instanceof SlabBlock) {
-                return feet.up();
+                return feet.above();
             }
         } catch (NullPointerException ignored) {}
 
         return feet;
     }
 
-    default Vec3d playerFeetAsVec() {
-        return new Vec3d(player().getEntityPos().x, player().getEntityPos().y, player().getEntityPos().z);
+    default Vec3 playerFeetAsVec() {
+        return new Vec3(player().position().x(), player().position().y, player().position().z());
     }
 
-    default Vec3d playerHead() {
-        return new Vec3d(player().getEntityPos().x, player().getEntityPos().y + player().getStandingEyeHeight(), player().getEntityPos().z);
+    default Vec3 playerHead() {
+        return new Vec3(player().position().x(), player().position().y + player().getEyeHeight(), player().position().z());
     }
 
-    default Vec3d playerMotion() {
-        return player().getVelocity();
+    default Vec3 playerMotion() {
+        return player().getDeltaMovement();
     }
 
     BetterBlockPos viewerPos();
 
     default Rotation playerRotations() {
-        return new Rotation(player().getYaw(), player().getPitch());
+        return new Rotation(player().getYRot(), player().getXRot());
     }
 
     static double eyeHeight(boolean ifSneaking) {
