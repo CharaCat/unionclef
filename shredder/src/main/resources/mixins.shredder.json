@@ -24,8 +24,7 @@
     "MixinRenderType",
     "MixinItemStack",
     "MixinFireworkRocketEntity",
-    "MixinLootTable",
-    "MixinPalettedContainer"
+    "MixinLootTable"
   ],
   "mixins": []
 }
