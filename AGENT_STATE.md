@@ -69,13 +69,25 @@ unionclef/
 
 These stubs are NOT registered in the mixin config, so they don't cause Fabric Loader failures at runtime.
 
-## Current Status: ✅ FULLY FUNCTIONAL — IN-GAME VERIFIED
+## Current Status: ✅ COMPILES, LAUNCHES — PATHFINDING FIX PENDING LAUNCH
 
 ### Compilation
 ```
 BUILD SUCCESSFUL — zero errors across all three modules
 JAR: versions/26.2/build/libs/unionclef-26.2-0.24.0-mc26.2.jar (6MB)
 ```
+
+### 2026-06-26 Fixes Applied
+1. **DestroyBlockTask ported** — was a 17-line stub (isFinished()=true),
+   now full 296-line implementation with baritone pathfinding integration
+2. **GetToXZTask ported** — was a stub, now extends CustomBaritoneGoalTask
+3. **Shredder mixin config restored** — mixins.shredder.json was completely empty
+   (client:[]) — all 20 shredder mixins were dead, pathfinding engine offline
+4. **Yarn paths fixed** — @At targets in shredder mixins updated to Mojang 26.2:
+   net/minecraft/client/network/* → net/minecraft/client/player/*
+   net/minecraft/entity/* → net/minecraft/world/entity/*
+   net/minecraft/util/math/Vec3 → net/minecraft/world/phys/Vec3
+5. **Orphaned unionclef.mixins.json removed** — referenced 11 non-existent mixins
 
 ### Runtime (2026-06-26, 03:50 MSK)
 ```
