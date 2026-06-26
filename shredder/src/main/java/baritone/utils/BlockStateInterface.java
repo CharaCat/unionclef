@@ -64,8 +64,11 @@ public class BlockStateInterface {
         this.worldBorder = new BetterWorldBorder(world.getWorldBorder());
         this.worldData = (WorldData) ctx.worldData();
         if (copyLoadedChunks) {
-            this.provider = ((IClientChunkProvider) world.getChunkSource()).createThreadSafeCopy();
-        } else {
+                    // MC 26.2: IClientChunkProvider mixin not yet ported; use default chunk source.
+                    // The ChunkArray + IClientChunkProvider accessor chain needs a full port of
+                    // the chunk storage model (PalettedContainer, LevelChunkSection, etc.).
+                    this.provider = (ClientChunkCache) world.getChunkSource();
+                } else {
             this.provider = (ClientChunkCache) world.getChunkSource();
         }
         this.useTheRealWorld = !Baritone.settings().pathThroughCachedOnly.value;

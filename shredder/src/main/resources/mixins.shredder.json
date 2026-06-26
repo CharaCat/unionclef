@@ -16,8 +16,6 @@
     "MixinPlayerController",
     "MixinScreen",
     "MixinCommandSuggestionHelper",
-    "MixinChunkArray",
-    "MixinClientChunkProvider",
     "MixinEntityRenderDispatcher",
     "MixinLevelRenderer",
     "MixinRenderPipelines",
