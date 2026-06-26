@@ -257,5 +257,6 @@ export JAVA_HOME="/c/Users/baumf/jdks/temurin-jdk25/jdk-25.0.3+9"
 
 ## Git Status (2026-06-27)
 - Branch: 1.21.11
-- Working tree is DIRTY
-- Awaiting rebuild (compileJava) to verify changes
+- Last commit: 7962dfb (pushed)
+- BUILD SUCCESSFUL — zero errors
+- JAR deployed to PrismLauncher mods folder
