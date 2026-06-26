@@ -17,7 +17,6 @@
     "MixinScreen",
     "MixinCommandSuggestionHelper",
     "MixinEntityRenderDispatcher",
-    "MixinLevelRenderer",
     "MixinRenderPipelines",
     "MixinRenderType",
     "MixinItemStack",
