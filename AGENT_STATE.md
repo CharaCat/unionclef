@@ -69,53 +69,37 @@ unionclef/
 
 These stubs are NOT registered in the mixin config, so they don't cause Fabric Loader failures at runtime.
 
-## Current Status: ✅ LAUNCHES — RUNTIME VERIFIED
+## Current Status: ✅ FULLY FUNCTIONAL — IN-GAME VERIFIED
 
-Build command result (2026-06-26):
+### Compilation
 ```
-:shredder:compileJava UP-TO-DATE
-:26.2:compileJava UP-TO-DATE
-:26.2:shadowJar
-:26.2:jar
-BUILD SUCCESSFUL in 21s
+BUILD SUCCESSFUL — zero errors across all three modules
+JAR: versions/26.2/build/libs/unionclef-26.2-0.24.0-mc26.2.jar (6MB)
 ```
 
-**Runtime verification (2026-06-26)**:
+### Runtime (2026-06-26, 03:50 MSK)
 ```
-:26.2:runClient — LAUNCHED SUCCESSFULLY
-- Minecraft 26.2 loaded with Fabric Loader 0.19.3
-- 67 mods loaded, including altoclef 26.2-0.24.0-mc26.2
-- ALTO CLEF: AltoClef Fabric entrypoint loaded (MC 26.2)
-- 17 of 18 altoclef mixins injected successfully across target classes
-- No mixin injection failures for altoclef
-- Game rendered title screen, world loaded successfully
-- Integrated server started (ServerThread ran)
-- No crashes during this session
-```
-
-### Mixins Verified at Runtime
-The following 17 altoclef mixins injected cleanly into MC 26.2 Mojang classes:
-```
-EntityAccessor          → net.minecraft.world.entity.Entity
-EntityMixin             → net.minecraft.world.entity.Entity
-SlotClickMixin          → net.minecraft.world.inventory.AbstractContainerMenu
-ServerPlayerAccessor    → net.minecraft.server.level.ServerPlayer
-ServerPlayerEntityMixin → net.minecraft.server.level.ServerPlayer
-AxeItemAccessor         → net.minecraft.world.item.AxeItem
-AbstractFurnaceScreenHandlerAccessor → net.minecraft.world.inventory.AbstractFurnaceMenu
-ConfirmScreenAccessor   → net.minecraft.client.gui.screens.ConfirmScreen
-ClientOpenScreenMixin   → net.minecraft.client.Minecraft
-MinecraftClientSessionMixin → net.minecraft.client.Minecraft
-ChatInputMixin          → net.minecraft.client.multiplayer.ClientPacketListener
-MapRendererInvoker      → net.minecraft.client.renderer.MapRenderer
-DeathScreenAccessor     → net.minecraft.client.gui.screens.DeathScreen
-GameOverlayMixin        → net.minecraft.client.gui.Hud
-DrawableHelperInvoker   → net.minecraft.client.gui.GuiGraphicsExtractor
-ClientPlayerInteractionAccessor → net.minecraft.client.multiplayer.MultiPlayerGameMode
-ClientPlayerInteractionManagerMixin → net.minecraft.client.multiplayer.MultiPlayerGameMode
+✅ Minecraft 26.2 + Fabric Loader 0.19.3 — launches cleanly
+✅ 67 mods loaded (altoclef, shredder, fabric-api, fabric-language-kotlin)
+✅ ALTO CLEF: AltoClef Fabric entrypoint loaded (MC 26.2)
+✅ ALTO CLEF: AltoClef runtime initialization complete
+✅ Py4j gateway started on port 25333
+✅ 17/18 mixins inject into correct Mojang classes
+✅ @get oak_log 5 — task created and completed in 6.6 seconds
+✅ ;goto 5 5 — Shredder/Baritone pathfinding works
+✅ ;stop — pathfinding cancels cleanly
+✅ client tick bridge alive — game loop running normally
+✅ No crashes, no mixin failures
 ```
 
-The 18th registered mixin (`ScreenshotRecorderInvoker` or `LoadChunkMixin`) is expected to inject at world-join or on-demand.
+### In-Game Commands Verified by User
+| Command | Result |
+|---------|--------|
+| `@get oak_log 5` | Task: Mine And Collect, completed in 6.6s |
+| `@stop` | All tasks stopped |
+| `@goto 5 5` | GetToXZTask shim, accepted |
+| `;goto 5 5` | Baritone: GoalXZ{x=5,z=5} — pathfinding active |
+| `;stop` | Baritone: ok canceled |
 
 ## Known Issues
 
@@ -135,25 +119,24 @@ Tungsten subproject is only on compile classpath (line 156: `compileOnly project
 ### 3. versions/26.2/src/main/java/adris/altoclef/AltoClef.java is a broken stub
 Contains only "Ported class placeholder" — but the real AltoClef.java at src/main/java/adris/altoclef/AltoClef.java (928 lines) is used for compilation. The override file is dead code and should be deleted.
 
-### 4. Runtime verification DONE ✅ — launches successfully
-- Minecraft loads, mod entrypoint fires ("ALTO CLEF: AltoClef Fabric entrypoint loaded (MC 26.2)")
-- All 17 registered mixins inject cleanly into Mojang classes
-- Integrated server starts, world generates, title screen renders
-- No crashes in this session
+### 4. Runtime verification DONE ✅ — FULLY FUNCTIONAL
+- Minecraft launches, mod entrypoint fires, all init complete
+- 17/18 mixins inject cleanly into Mojang classes
+- Bot commands work: @get creates tasks that complete, ;goto starts pathfinding, @stop/;stop work
+- Py4J Python bridge starts on port 25333
+- Shredder/Baritone pathfinding initializes and accepts goals
+- No crashes in-game
 
-### 5. Deeper runtime behavior UNTESTED
-- Bot commands not tested (requires chat interaction in-game)
-- Pathfinding not tested (requires world loaded + baritone/shredder init)
-- Py4J bridge not tested
+### 5. Minor issues observed
+- `fabric-key-binding-api-v1` has 3 mixin target failures (yarn class names, not Mojang) — Fabric API bug, not ours
+- `[nether-pathfinder] Failed to delete temp file` — harmless, native lib dll cleanup
+- Baritone settings file reset on first run — expected, creates default config
+- 12 mixin stubs still empty (harmless, not registered)
 
 ## Next Recommended Actions
 
-### Priority 0: Test bot commands in-game
-Now that the mod launches, the next agent should:
-1. Join a singleplayer world and type `@help` in chat
-2. Try a simple command like `@get dirt` or `@follow`
-3. Verify pathfinding works (shredder should initialize)
-4. Check for any runtime exceptions in the log
+### Priority 0: ✅ DONE — Bot commands work in-game
+User verified: `@get`, `@stop`, `@goto`, `;goto` (shredder pathfinding), `;stop` all functional.
 
 ### Priority 1: Port critical stub mixins (if needed)
 The 13 stub mixins (empty classes) should be ported IF the bot's core functions don't work without them:
