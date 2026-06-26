@@ -69,7 +69,7 @@ public class MixinMinecraft {
             at = @At(
                     value = "FIELD",
                     opcode = Opcodes.GETFIELD,
-                    target = "net/minecraft/client/Minecraft.currentScreen:Lnet/minecraft/client/gui/screen/Screen;",
+                    target = "net/minecraft/client/Minecraft.gui:Lnet/minecraft/client/gui/Gui;",
                     ordinal = 0,
                     shift = At.Shift.BEFORE
             ),
@@ -115,7 +115,7 @@ public class MixinMinecraft {
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "net/minecraft/client/world/ClientLevel.tickEntities()V",
+                    target = "net/minecraft/client/multiplayer/ClientLevel.tickEntities()V",
                     shift = At.Shift.AFTER
             )
     )
@@ -135,7 +135,7 @@ public class MixinMinecraft {
             at = @At(
                     value = "FIELD",
                     opcode = Opcodes.GETFIELD,
-                    target = "Lnet/minecraft/client/Minecraft;currentScreen:Lnet/minecraft/client/gui/screen/Screen;"
+                    target = "Lnet/minecraft/client/Minecraft;gui:Lnet/minecraft/client/gui/Gui;"
             ),
             slice = @Slice(
                     from = @At(
