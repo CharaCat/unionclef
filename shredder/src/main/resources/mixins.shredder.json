@@ -25,9 +25,7 @@
     "MixinItemStack",
     "MixinFireworkRocketEntity",
     "MixinLootTable",
-    "MixinNetworkManager",
-    "MixinPalettedContainer",
-    "MixinPalettedContainer$Data"
+    "MixinPalettedContainer"
   ],
   "mixins": []
 }
