@@ -27,21 +27,21 @@ import org.spongepowered.asm.mixin.Shadow;
 @Mixin(RenderPipelines.class)
 public class MixinRenderPipelines implements IRenderPipelines {
     @Final @Shadow
-    private static RenderPipeline.Snippet RENDERTYPE_LINES_SNIPPET;
+    private static RenderPipeline.Snippet LINES_SNIPPET;
 
     @Final @Shadow
-    private static RenderPipeline.Snippet TRANSFORMS_PROJECTION_FOG_SNIPPET;
+    private static RenderPipeline.Snippet MATRICES_FOG_SNIPPET;
 
     @Shadow
     private static RenderPipeline register(final RenderPipeline renderPipeline) { return null; }
 
     public RenderPipeline.Snippet getLinesSnippet() {
-        return RENDERTYPE_LINES_SNIPPET;
+        return LINES_SNIPPET;
     }
 
     @Override
     public RenderPipeline.Snippet getMatricesFogSnippet() {
-        return TRANSFORMS_PROJECTION_FOG_SNIPPET;
+        return MATRICES_FOG_SNIPPET;
     }
 
     @Override

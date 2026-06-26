@@ -32,16 +32,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MixinEntity {
 
     @Shadow
-    private float yaw;
+    private float yRot;
 
     @Shadow
-    private float pitch;
+    private float xRot;
 
     @Unique
     private RotationMoveEvent motionUpdateRotationEvent;
 
     @Inject(
-            method = "updateVelocity",
+            method = "moveRelative",
             at = @At("HEAD")
     )
     private void moveRelativeHead(CallbackInfo info) {
@@ -49,20 +49,20 @@ public class MixinEntity {
         if (!LocalPlayer.class.isInstance(this) || BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this) == null) {
             return;
         }
-        this.motionUpdateRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.MOTION_UPDATE, this.yaw, this.pitch);
+        this.motionUpdateRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.MOTION_UPDATE, this.yRot, this.xRot);
         BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this).getGameEventHandler().onPlayerRotationMove(motionUpdateRotationEvent);
-        this.yaw = this.motionUpdateRotationEvent.getYRot();
-        this.pitch = this.motionUpdateRotationEvent.getXRot();
+        this.yRot = this.motionUpdateRotationEvent.getYRot();
+        this.xRot = this.motionUpdateRotationEvent.getXRot();
     }
 
     @Inject(
-            method = "updateVelocity",
+            method = "moveRelative",
             at = @At("RETURN")
     )
     private void moveRelativeReturn(CallbackInfo info) {
         if (this.motionUpdateRotationEvent != null) {
-            this.yaw = this.motionUpdateRotationEvent.getOriginal().getYRot();
-            this.pitch = this.motionUpdateRotationEvent.getOriginal().getXRot();
+            this.yRot = this.motionUpdateRotationEvent.getOriginal().getYRot();
+            this.xRot = this.motionUpdateRotationEvent.getOriginal().getXRot();
             this.motionUpdateRotationEvent = null;
         }
     }

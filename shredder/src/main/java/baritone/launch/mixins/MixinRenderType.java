@@ -27,12 +27,12 @@ import org.spongepowered.asm.mixin.Shadow;
 public abstract class MixinRenderType implements IRenderType {
 
     @Shadow
-    static RenderType of(final String string, final RenderSetup renderSetup) {
+    static RenderType create(final String string, final RenderSetup renderSetup) {
         return null;
     }
 
     @Override
     public RenderType createRenderType(final String name, final RenderSetup renderSetup) {
-        return of(name, renderSetup);
+        return create(name, renderSetup);
     }
 }

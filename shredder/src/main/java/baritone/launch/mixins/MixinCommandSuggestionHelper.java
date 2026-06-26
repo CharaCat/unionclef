@@ -47,23 +47,23 @@ public class MixinCommandSuggestionHelper {
 
     @Shadow
     @Final
-    EditBox textField;
+    EditBox input;
 
     @Shadow
     @Final
-    private List<FormattedCharSequence> messages;
+    private List<FormattedCharSequence> commandUsage;
 
     @Shadow
-    private ParseResults parse;
+    private ParseResults currentParse;
 
     @Shadow
     private CompletableFuture<Suggestions> pendingSuggestions;
 
     @Shadow
-    private CommandSuggestions.SuggestionsList window;
+    private CommandSuggestions.SuggestionsList suggestions;
 
     @Shadow
-    boolean completingSuggestions;
+    boolean keepSuggestions;
 
     @Inject(
             method = "refresh",
@@ -72,7 +72,7 @@ public class MixinCommandSuggestionHelper {
     )
     private void preUpdateSuggestion(CallbackInfo ci) {
         // Anything that is present in the input text before the cursor position
-        String prefix = this.textField.getValue().substring(0, Math.min(this.textField.getValue().length(), this.textField.getCursorPosition()));
+        String prefix = this.input.getValue().substring(0, Math.min(this.input.getValue().length(), this.input.getCursorPosition()));
 
         TabCompleteEvent event = new TabCompleteEvent(prefix);
         BaritoneAPI.getProvider().getPrimaryBaritone().getGameEventHandler().onPreTabComplete(event);
@@ -85,16 +85,16 @@ public class MixinCommandSuggestionHelper {
         if (event.completions != null) {
             ci.cancel();
 
-            this.parse = null; // stop coloring
+            this.currentParse = null; // stop coloring
 
-            if (this.completingSuggestions) { // Suppress suggestions update when cycling suggestions.
+            if (this.keepSuggestions) { // Suppress suggestions update when cycling suggestions.
                 return;
             }
 
-            this.textField.setSuggestion(null); // clear old suggestions
-            this.window = null;
+            this.input.setSuggestion(null); // clear old suggestions
+            this.suggestions = null;
             // TODO: Support populating the command usage
-            this.messages.clear();
+            this.commandUsage.clear();
 
             if (event.completions.length == 0) {
                 this.pendingSuggestions = Suggestions.empty();

@@ -66,9 +66,13 @@ public class TungstenBridge {
         if (state != State.INACTIVE) {
             return 0; // already delegated
         }
-        if (TungstenModDataContainer.PATHFINDER.active.get()
-                || TungstenModDataContainer.EXECUTOR.isRunning()) {
-            return 0; // tungsten is busy with something else
+        try {
+            if (TungstenModDataContainer.PATHFINDER.active.get()
+                    || TungstenModDataContainer.EXECUTOR.isRunning()) {
+                return 0; // tungsten is busy with something else
+            }
+        } catch (NoClassDefFoundError e) {
+            return 0; // tungsten not available at runtime
         }
 
         IMovement current = movements.get(position);
@@ -149,7 +153,11 @@ public class TungstenBridge {
     public int evaluateExperimentalSegment(List<? extends IMovement> movements, int position, IPlayerContext ctx) {
         if (!Baritone.settings().experimentalPathfinding.value) return 0;
         if (state != State.INACTIVE) return 0;
-        if (TungstenModDataContainer.PATHFINDER.active.get() || TungstenModDataContainer.EXECUTOR.isRunning()) return 0;
+        try {
+            if (TungstenModDataContainer.PATHFINDER.active.get() || TungstenModDataContainer.EXECUTOR.isRunning()) return 0;
+        } catch (NoClassDefFoundError e) {
+            return 0; // tungsten not available at runtime
+        }
 
         IMovement current = movements.get(position);
         if (!isExperimentalCompatible(current)) return 0;
@@ -210,26 +218,32 @@ public class TungstenBridge {
     private boolean tickPathfinding(IPlayerContext ctx) {
         stallTicks++;
 
-        // Pathfinder still running
-        if (TungstenModDataContainer.PATHFINDER.active.get()) {
-            if (stallTicks > 100) { // 5 seconds — pathfinder is taking too long
-                abort();
-                return false;
+        try {
+            // Pathfinder still running
+            if (TungstenModDataContainer.PATHFINDER.active.get()) {
+                if (stallTicks > 100) { // 5 seconds — pathfinder is taking too long
+                    abort();
+                    return false;
+                }
+                return true; // yield to tungsten, but don't clear shredder keys yet
             }
-            return true; // yield to tungsten, but don't clear shredder keys yet
-        }
 
-        // Pathfinder finished — check if executor got a path
-        if (TungstenModDataContainer.EXECUTOR.isRunning()) {
-            state = State.EXECUTING;
-            stallTicks = 0;
-            lastPlayerPos = ctx.player().position();
+            // Pathfinder finished — check if executor got a path
+            if (TungstenModDataContainer.EXECUTOR.isRunning()) {
+                state = State.EXECUTING;
+                stallTicks = 0;
+                lastPlayerPos = ctx.player().position();
 
-            // Set callback for when tungsten finishes
-            TungstenModDataContainer.EXECUTOR.cb = () -> {
-                state = State.RETURNING;
-            };
-            return true;
+                // Set callback for when tungsten finishes
+                TungstenModDataContainer.EXECUTOR.cb = () -> {
+                    state = State.RETURNING;
+                };
+                return true;
+            }
+        } catch (NoClassDefFoundError e) {
+            // Tungsten not available at runtime
+            abort();
+            return false;
         }
 
         // Pathfinder finished but no path produced — abort
@@ -238,8 +252,13 @@ public class TungstenBridge {
     }
 
     private boolean tickExecuting(IPlayerContext ctx) {
-        if (!TungstenModDataContainer.EXECUTOR.isRunning()) {
-            // Executor finished
+        try {
+            if (!TungstenModDataContainer.EXECUTOR.isRunning()) {
+                // Executor finished
+                state = State.RETURNING;
+                return false;
+            }
+        } catch (NoClassDefFoundError e) {
             state = State.RETURNING;
             return false;
         }
@@ -282,9 +301,13 @@ public class TungstenBridge {
     }
 
     private void stopTungsten() {
-        TungstenModDataContainer.PATHFINDER.stop.set(true);
-        if (TungstenModDataContainer.EXECUTOR != null) {
-            TungstenModDataContainer.EXECUTOR.stop = true;
+        try {
+            TungstenModDataContainer.PATHFINDER.stop.set(true);
+            if (TungstenModDataContainer.EXECUTOR != null) {
+                TungstenModDataContainer.EXECUTOR.stop = true;
+            }
+        } catch (NoClassDefFoundError e) {
+            // Tungsten not included at runtime — nothing to stop
         }
     }
 
