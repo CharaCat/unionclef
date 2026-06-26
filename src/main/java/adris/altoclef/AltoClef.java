@@ -37,22 +37,28 @@ import baritone.altoclef.AltoClefSettings;
 import baritone.api.BaritoneAPI;
 import baritone.api.Settings;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import adris.altoclef.mixins.MinecraftClientSessionMixin;
 import adris.altoclef.util.helpers.ConfigHelper;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.session.Session;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.User;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
 import py4j.GatewayServer;
 import py4j.Py4JNetworkException;
 
 import java.util.*;
 import java.util.function.Consumer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.User;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Central access point for AltoClef
@@ -64,7 +70,7 @@ public class AltoClef implements ModInitializer {
 
     // Camera modifier statics (used by CameraMixin / EpicCamera)
     public static baritone.api.utils.Rotation _cameraRotationModifer = null;
-    public static net.minecraft.util.math.Vec3d _cameraPositionModifer = null;
+    public static net.minecraft.world.phys.Vec3 _cameraPositionModifer = null;
 
     public static baritone.api.utils.Rotation getCameraRotationModifer() {
         return _cameraRotationModifer;
@@ -75,10 +81,10 @@ public class AltoClef implements ModInitializer {
     public static void resetCameraRotationModifer() {
         _cameraRotationModifer = null;
     }
-    public static net.minecraft.util.math.Vec3d getCameraPositionModifer() {
+    public static net.minecraft.world.phys.Vec3 getCameraPositionModifer() {
         return _cameraPositionModifer;
     }
-    public static void setCameraPositionModifer(net.minecraft.util.math.Vec3d pos) {
+    public static void setCameraPositionModifer(net.minecraft.world.phys.Vec3 pos) {
         _cameraPositionModifer = pos;
     }
     public static void resetCameraPositionModifer() {
@@ -127,6 +133,8 @@ public class AltoClef implements ModInitializer {
     private long _timeoutStartMs;
 
     private static AltoClef instance;
+    private boolean initializedLoad;
+    private long debugTickCounter;
 
     // Pipeline (multiplayer game mode)
     private static adris.altoclef.util.agent.Pipeline _pipeline = adris.altoclef.util.agent.Pipeline.None;
@@ -216,9 +224,9 @@ public class AltoClef implements ModInitializer {
     }
 
     public static String getSelfName() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null) return "";
-        if (client.getSession() != null) return client.getSession().getUsername();
+        if (client.getUser() != null) return client.getUser().getName();
         if (client.player != null) return client.player.getName().getString();
         return "";
     }
@@ -232,32 +240,20 @@ public class AltoClef implements ModInitializer {
             Debug.logWarning("Cannot change username: empty");
             return false;
         }
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getSession() == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getUser() == null) {
             Debug.logWarning("Cannot change username: no session");
             return false;
         }
         try {
-            Session cur = client.getSession();
-            //#if MC >= 12111
-            //$$ // TODO [1.21.11] Session.getAccountType() removed — constructor changed
-            //$$ Session next = new Session(
-            //$$         newUsername,
-            //$$         cur.getUuidOrNull(),
-            //$$         cur.getAccessToken(),
-            //$$         cur.getXuid(),
-            //$$         cur.getClientId()
-            //$$ );
-            //#else
-            Session next = new Session(
+            User cur = client.getUser();
+            User next = new User(
                     newUsername,
-                    cur.getUuidOrNull(),
+                    cur.getProfileId(),
                     cur.getAccessToken(),
                     cur.getXuid(),
-                    cur.getClientId(),
-                    cur.getAccountType()
+                    cur.getClientId()
             );
-            //#endif
             ((MinecraftClientSessionMixin) client).setSession(next);
             Debug.logMessage("Username changed to: " + newUsername);
             return true;
@@ -294,7 +290,7 @@ public class AltoClef implements ModInitializer {
 
     // Are we in game (playing in a server/world)
     public static boolean inGame() {
-        return MinecraftClient.getInstance().player != null && MinecraftClient.getInstance().getNetworkHandler() != null;
+        return Minecraft.getInstance().player != null && Minecraft.getInstance().getConnection() != null;
     }
 
     /**
@@ -309,12 +305,50 @@ public class AltoClef implements ModInitializer {
         // This code runs as soon as Minecraft is in a mod-load-ready state.
         // However, some things (like resources) may still be uninitialized.
         // As such, nothing will be loaded here but basic initialization.
-        EventBus.subscribe(TitleScreenEntryEvent.class, evt -> onInitializeLoad());
+        System.out.println("ALTO CLEF: AltoClef Fabric entrypoint loaded (MC 26.2)");
+        EventBus.subscribe(TitleScreenEntryEvent.class, evt -> ensureInitializeLoad());
+
+        // MC 26.2 smoke-launch path: title-screen/chat mixins may be disabled while their
+        // targets are ported. Use Fabric events so the mod is actually active in-game.
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            if (client.player != null) {
+                ensureInitializeLoad();
+                if (initializedLoad) {
+                    if ((debugTickCounter++ % 200) == 0) {
+                        System.out.println("ALTO CLEF: client tick bridge alive");
+                    }
+                    EventBus.publish(new ClientTickEvent());
+                }
+            }
+        });
+        ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
+            System.out.println("ALTO CLEF: outgoing chat intercepted: " + message);
+            if (message.startsWith(";")) {
+                String baritoneCommand = message.substring(1).strip();
+                if (!baritoneCommand.isEmpty() && getClientBaritone() != null) {
+                    boolean handled = getClientBaritone().getCommandManager().execute(baritoneCommand);
+                    System.out.println("ALTO CLEF: semicolon command forwarded to Shredder/Baritone: " + baritoneCommand + ", handled=" + handled);
+                    return false;
+                }
+            }
+            SendChatEvent event = new SendChatEvent(message);
+            EventBus.publish(event);
+            System.out.println("ALTO CLEF: outgoing chat cancelled=" + event.isCancelled());
+            return !event.isCancelled();
+        });
 
         if (instance != null) {
             throw new IllegalStateException("AltoClef already loaded!");
         }
         instance = this;
+    }
+
+    private void ensureInitializeLoad() {
+        if (initializedLoad) return;
+        initializedLoad = true;
+        System.out.println("ALTO CLEF: AltoClef runtime initialization starting");
+        onInitializeLoad();
+        System.out.println("ALTO CLEF: AltoClef runtime initialization complete");
     }
 
     public void onInitializeLoad() {
@@ -353,7 +387,7 @@ public class AltoClef implements ModInitializer {
 
         // Renderers
         commandStatusOverlay = new CommandStatusOverlay();
-        altoClefTickChart = new AltoClefTickChart(MinecraftClient.getInstance().textRenderer);
+        altoClefTickChart = new AltoClefTickChart(Minecraft.getInstance().font);
 
         // Misc managers
         messageSender = new MessageSender();
@@ -455,8 +489,8 @@ public class AltoClef implements ModInitializer {
         // A headless bot would sit on it / get kicked. When that ConfirmScreen opens, click YES automatically.
         EventBus.subscribe(adris.altoclef.eventbus.events.ScreenOpenEvent.class, evt -> {
             if (evt.preOpen) return;
-            net.minecraft.client.gui.screen.Screen s = evt.screen;
-            if (!(s instanceof net.minecraft.client.gui.screen.ConfirmScreen)) return;
+            net.minecraft.client.gui.screens.Screen s = evt.screen;
+            if (!(s instanceof net.minecraft.client.gui.screens.ConfirmScreen)) return;
             String t = s.getTitle().getString().toLowerCase();
             if (t.contains("resource pack") || t.contains("texture")
                     || t.contains("ресурс") || t.contains("набор ресурс")) {
@@ -786,26 +820,26 @@ public class AltoClef implements ModInitializer {
     /**
      * Minecraft player client access (could just be static honestly)
      */
-    public ClientPlayerEntity getPlayer() {
-        return MinecraftClient.getInstance().player;
+    public LocalPlayer getPlayer() {
+        return Minecraft.getInstance().player;
     }
 
     /**
      * Minecraft world access (could just be static honestly)
      */
-    public ClientWorld getWorld() {
-        return MinecraftClient.getInstance().world;
+    public ClientLevel getWorld() {
+        return Minecraft.getInstance().level;
     }
 
     /**
      * Minecraft client interaction controller access (could just be static honestly)
      */
-    public ClientPlayerInteractionManager getController() {
-        return MinecraftClient.getInstance().interactionManager;
+    public MultiPlayerGameMode getController() {
+        return Minecraft.getInstance().gameMode;
     }
 
     /**
-     * Extra controls not present in ClientPlayerInteractionManager. This REALLY should be made static or combined with something else.
+     * Extra controls not present in MultiPlayerGameMode. This REALLY should be made static or combined with something else.
      */
     public PlayerExtraController getControllerExtras() {
         return extraController;
