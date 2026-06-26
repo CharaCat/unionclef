@@ -1,10 +1,20 @@
 buildscript {
     def (major, minor, patch) = project.name.split("-")[0].tokenize('.')
-    project.ext.mcVersion = "${major}${minor.padLeft(2, '0')}${(patch ?: '').padLeft(2, '0')}" as int
+    project.ext.mcVersion = "${major}${minor.padLeft(2, '0')}${(patch ?: '00').padLeft(2, '0')}" as int
+
+    repositories {
+        mavenLocal()
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        mavenCentral()
+        gradlePluginPortal()
+    }
 
     dependencies {
         classpath 'fabric-loom:fabric-loom.gradle.plugin:1.15.5'
         classpath 'com.github.breadmoirai:github-release:2.5.2'
+        if (project.name == "26.2") {
+            classpath 'com.github.replaymod:preprocessor:SNAPSHOT'
+        }
     }
 }
 
@@ -13,8 +23,10 @@ plugins {
     id 'com.gradleup.shadow' version '9.4.0'
 }
 
-apply plugin: 'fabric-loom'
-apply plugin: 'com.replaymod.preprocess'
+apply plugin: 'net.fabricmc.fabric-loom'
+if (project.name == "26.2") {
+    apply plugin: 'com.replaymod.preprocess'
+}
 
 loom {
     runs {
@@ -27,20 +39,23 @@ loom {
     }
 }
 
-preprocess {
-    patternAnnotation.set("adris.altoclef.multiversion.Pattern")
+if (project.name == "26.2") {
+    preprocess {
+        patternAnnotation.set("adris.altoclef.multiversion.Pattern")
+    }
 }
+
+def javaVer = (project.name == "26.2") ? JavaVersion.VERSION_25 : JavaVersion.VERSION_21
+int releaseVer = (project.name == "26.2") ? 25 : 21
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
+    sourceCompatibility = javaVer
+    targetCompatibility = javaVer
 }
 
-// Tungsten is now a standalone mod (1.21.11-primary source, own build.gradle).
-// No longer compiled inline via srcDir — imported as dependency instead.
-
 tasks.withType(JavaCompile).configureEach {
-    options.release = 21
+    options.release = releaseVer
     options.encoding = "UTF-8"
 }
 
@@ -50,29 +65,38 @@ base {
 version = "${project.name}-${project.mod_version}"
 group = project.maven_group
 
-// ── Per-version mappings ────────────────────────────────────────────────────
+// ── Per-version mappings ────────────────────
 
-def mappingsVersions = [
+def mappingsVersions
+def fabricApiVersions
+def loaderVersions
+
+if (project.name == "26.2") {
+    mappingsVersions = [26020: "26.2+build.1"]
+    fabricApiVersions = [26020: project.fabric_api_version]
+    loaderVersions = [26020: project.loader_version]
+} else {
+    mappingsVersions = [
         12100: "1.21+build.9",
         12101: "1.21.1+build.3",
         12111: "1.21.11+build.3",
-]
-
-def fabricApiVersions = [
+    ]
+    fabricApiVersions = [
         12100: "0.100.7+1.21",
         12101: "0.116.9+1.21.1",
         12111: "0.140.0+1.21.11",
-]
-
-def loaderVersions = [
+    ]
+    loaderVersions = [
         12100: project.loader_version,
         12101: project.loader_version,
         12111: "0.18.3",
-]
+    ]
+}
 
-// ── Repositories ────────────────────────────────────────────────────────────
+// ── Repositories ────────────────────
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
         name = 'babbaj-repo'
@@ -82,18 +106,28 @@ repositories {
         name = 'maxhenkel-repo'
         url = 'https://maven.maxhenkel.de/repository/public'
     }
+    if (project.name == "26.2") {
+        maven { name = 'modrinth'; url = 'https://api.modrinth.com/maven' }
+    }
 }
 
-// ── Dependencies ────────────────────────────────────────────────────────────
+// ── Dependencies ────────────────────
 
 dependencies {
-    minecraft("com.mojang:minecraft:${project.name}")
-    mappings("net.fabricmc:yarn:${mappingsVersions[mcVersion]}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${loaderVersions[mcVersion] ?: project.loader_version}")
+    minecraft("com.mojang:minecraft:${project.minecraft_version}")
+
+    // MC 26.2 uses unobfuscated Mojang names — no mappings needed
+    if (project.name != "26.2") {
+        mappings("net.fabricmc:yarn:${mappingsVersions[mcVersion]}:v2")
+    }
+    implementation("net.fabricmc:fabric-loader:${loaderVersions[mcVersion] ?: project.loader_version}")
     include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:0.3.5")))
 
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${fabricApiVersions[mcVersion]}")
-    modRuntimeOnly("net.fabricmc:fabric-language-kotlin:1.13.2+kotlin.2.1.20")
+    implementation("net.fabricmc.fabric-api:fabric-api:${fabricApiVersions[mcVersion]}")
+    if (project.name == "26.2") {
+        implementation("net.fabricmc.fabric-api:fabric-key-binding-api-v1:1.1.7+4fc5413f3e")
+    }
+    runtimeOnly("net.fabricmc:fabric-language-kotlin:1.13.2+kotlin.2.1.20")
 
     // Jackson JSON
     implementation 'com.fasterxml.jackson.core:jackson-core:2.17.2'
@@ -115,23 +149,31 @@ dependencies {
     shadow('com.fasterxml.jackson.core:jackson-databind:2.17.2')
 
     // Shredder — new pathfinder (replaces baritone, same package names)
-    implementation project(path: ":shredder", configuration: "namedElements")
+    implementation project(":shredder")
     include project(":shredder")
 
-    // Tungsten — standalone mod (1.21.11 mappings, own mixins + entrypoint)
-    implementation project(path: ":tungsten", configuration: "namedElements")
-    include project(":tungsten")
+    // Tungsten is not runtime-ready on MC 26.2 yet; keep it off runClient classpath.
+    compileOnly project(":tungsten")
 }
 
-// ── Build pipeline ──────────────────────────────────────────────────────────
+// ── Build pipeline ──────────────────
 
 shadowJar {
     configurations = [project.configurations.shadow]
 }
 
-remapJar {
-    dependsOn("shadowJar")
-    input.set(shadowJar.archiveFile)
+// MC 26.2 is unobfuscated — no remap needed, shadow goes straight to jar
+if (project.name == "26.2") {
+    jar {
+        dependsOn("shadowJar")
+        from { zipTree(shadowJar.archiveFile) }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+} else {
+    remapJar {
+        dependsOn("shadowJar")
+        input.set(shadowJar.archiveFile)
+    }
 }
 
 processResources {
@@ -148,46 +190,39 @@ processResources {
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         exclude "fabric.mod.json"
     }
-
-    // Tungsten mixin config — include only the mixins json, not fabric.mod.json/assets
-    from(rootProject.file('tungsten/src/main/resources')) {
-        include 'tungsten.mixins.json'
-    }
 }
 
-task sourcesJar(type: Jar, dependsOn: classes) {
-    from sourceSets.main.allSource
-}
+// sourcesJar
 
 jar {
     from "LICENSE"
 }
 
-// ── Chat parser test (no MC runtime needed) ─────────────────────────────────
+// ── Chat parser test (no MC runtime needed) ─────────────────
 task testChatParser(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'adris.altoclef.butler.ChatParserTest'
     jvmArgs '-Dlog4j2.disable.jmx=true'
 }
 
-// ── Publishing ──────────────────────────────────────────────────────────────
+// ── Publishing ──────────────────────
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifact(remapJar) { builtBy remapJar }
-            artifact(sourcesJar) { builtBy remapSourcesJar }
+            if (project.name == "26.2") {
+                artifact(jar) { builtBy jar }
+                artifact(sourcesJar) { builtBy sourcesJar }
+            } else {
+                artifact(remapJar) { builtBy remapJar }
+                artifact(sourcesJar) { builtBy remapSourcesJar }
+            }
         }
     }
 }
 
-// ── GitHub Release (primary version only) ───────────────────────────────────
+// ── GitHub Release (stable + pre-release) ──────────────────
 
-// ── GitHub Release (stable + pre-release) ──────────────────────────────────
-// gradlew githubRelease      → stable release (v0.21.0)
-// gradlew githubPreRelease   → pre-release    (v0.21.0-alpha)
-
-// Configure on both version subprojects so either can release
 if (project.name == "1.21.1" || project.name == "1.21.11") {
     apply plugin: 'com.github.breadmoirai.github-release'
 
@@ -199,7 +234,7 @@ if (project.name == "1.21.1" || project.name == "1.21.11") {
     def releaseAssetFiles = files(
         { remapJar.archiveFile.get().asFile },
         { new File(rootProject.projectDir, "shredder/build/libs/shredder-0.1.0.jar") },
-        { new File(rootProject.projectDir, "tungsten/build/libs/tungsten-BETA-1.0.0.jar") },
+        { new File(rootProject.projectDir, "tungsten/build/libs/tungsten-beta-1.0.0.jar") },
     )
 
     def releaseBodyProvider = provider {
@@ -215,7 +250,6 @@ if (project.name == "1.21.1" || project.name == "1.21.11") {
         parts.join("\n---\n\n")
     }
 
-    // Default: stable release. githubPreRelease flips to alpha mode.
     def isPreRelease = project.objects.property(Boolean).convention(false)
 
     tasks.named('githubRelease') {

@@ -40,6 +40,11 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import adris.altoclef.mixins.MinecraftClientSessionMixin;
 import adris.altoclef.util.helpers.ConfigHelper;
 import net.minecraft.client.Minecraft;
@@ -321,6 +326,18 @@ public class AltoClef implements ModInitializer {
                 }
             }
         });
+
+        // MC 26.2 HUD overlay via Fabric HudElementRegistry
+        HudElementRegistry.attachElementBefore(
+                VanillaHudElements.CHAT,
+                Identifier.fromNamespaceAndPath("altoclef", "overlay"),
+                (GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) -> {
+                    if (initializedLoad && settings != null) {
+                        DrawContextWrapper ctx = DrawContextWrapper.of(graphics);
+                        if (ctx != null) onClientRenderOverlay(ctx);
+                    }
+                }
+        );
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             System.out.println("ALTO CLEF: outgoing chat intercepted: " + message);
             if (message.startsWith(";")) {
