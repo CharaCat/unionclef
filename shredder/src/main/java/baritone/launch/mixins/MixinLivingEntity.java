@@ -29,12 +29,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Optional;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 
 /**
  * @author Brady
@@ -52,7 +52,7 @@ public abstract class MixinLivingEntity extends Entity {
     @Unique
     private RotationMoveEvent elytraRotationEvent;
 
-    private MixinLivingEntity(EntityType<?> entityTypeIn, World worldIn) {
+    private MixinLivingEntity(EntityType<?> entityTypeIn, Level worldIn) {
         super(entityTypeIn, worldIn);
     }
 
@@ -62,7 +62,7 @@ public abstract class MixinLivingEntity extends Entity {
     )
     private void preMoveRelative(CallbackInfo ci) {
         this.getBaritone().ifPresent(baritone -> {
-            this.jumpRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.JUMP, this.getYaw(), this.getPitch());
+            this.jumpRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.JUMP, this.getYRot(), this.getXRot());
             baritone.getGameEventHandler().onPlayerRotationMove(this.jumpRotationEvent);
         });
     }
@@ -71,29 +71,29 @@ public abstract class MixinLivingEntity extends Entity {
             method = "jump",
             at = @At(
                     value = "INVOKE",
-                    target = "net/minecraft/entity/LivingEntity.getYaw()F"
+                    target = "net/minecraft/world/entity/LivingEntity.getYRot()F"
             )
     )
     private float overrideYaw(LivingEntity self) {
-        if (self instanceof ClientPlayerEntity && BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this) != null) {
-            return this.jumpRotationEvent.getYaw();
+        if (self instanceof LocalPlayer && BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this) != null) {
+            return this.jumpRotationEvent.getYRot();
         }
-        return self.getYaw();
+        return self.getYRot();
     }
 
     @Inject(
             method = "calcGlidingVelocity",
             at = @At(
                     value = "INVOKE",
-                    target = "net/minecraft/entity/LivingEntity.getRotationVector()Lnet/minecraft/util/math/Vec3d;"
+                    target = "net/minecraft/world/entity/LivingEntity.getRotationVector()Lnet/minecraft/world/phys/Vec3;"
             )
     )
-    private void onPreElytraMove(Vec3d direction, final CallbackInfoReturnable<Vec3d> cir) {
+    private void onPreElytraMove(Vec3 direction, final CallbackInfoReturnable<Vec3> cir) {
         this.getBaritone().ifPresent(baritone -> {
-            this.elytraRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.MOTION_UPDATE, this.getYaw(), this.getPitch());
+            this.elytraRotationEvent = new RotationMoveEvent(RotationMoveEvent.Type.MOTION_UPDATE, this.getYRot(), this.getXRot());
             baritone.getGameEventHandler().onPlayerRotationMove(this.elytraRotationEvent);
-            this.setYaw(this.elytraRotationEvent.getYaw());
-            this.setPitch(this.elytraRotationEvent.getPitch());
+            this.setYRot(this.elytraRotationEvent.getYRot());
+            this.setXRot(this.elytraRotationEvent.getXRot());
         });
     }
 
@@ -101,14 +101,14 @@ public abstract class MixinLivingEntity extends Entity {
             method = "travelGliding",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/LivingEntity;move(Lnet/minecraft/entity/MovementType;Lnet/minecraft/util/math/Vec3d;)V",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V",
                     shift = At.Shift.AFTER
             )
     )
     private void onPostElytraMove(final CallbackInfo ci) {
         if (this.elytraRotationEvent != null) {
-            this.setYaw(this.elytraRotationEvent.getOriginal().getYaw());
-            this.setPitch(this.elytraRotationEvent.getOriginal().getPitch());
+            this.setYRot(this.elytraRotationEvent.getOriginal().getYRot());
+            this.setXRot(this.elytraRotationEvent.getOriginal().getXRot());
             this.elytraRotationEvent = null;
         }
     }
@@ -116,8 +116,8 @@ public abstract class MixinLivingEntity extends Entity {
     @Unique
     private Optional<IBaritone> getBaritone() {
         // noinspection ConstantConditions
-        if (ClientPlayerEntity.class.isInstance(this)) {
-            return Optional.ofNullable(BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this));
+        if (LocalPlayer.class.isInstance(this)) {
+            return Optional.ofNullable(BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this));
         } else {
             return Optional.empty();
         }

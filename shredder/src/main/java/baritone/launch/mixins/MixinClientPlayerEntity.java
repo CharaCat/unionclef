@@ -36,15 +36,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.player.PlayerAbilities;
-import net.minecraft.util.PlayerInput;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.player.Abilities;
+import net.minecraft.world.entity.player.Input;
 
 /**
  * @author Brady
  * @since 8/1/2018
  */
-@Mixin(ClientPlayerEntity.class)
+@Mixin(LocalPlayer.class)
 public class MixinClientPlayerEntity {
     @Unique
     private static final MethodHandle MAY_FLY = baritone$resolveMayFly();
@@ -53,7 +53,7 @@ public class MixinClientPlayerEntity {
     private static MethodHandle baritone$resolveMayFly() {
         try {
             var lookup = MethodHandles.publicLookup();
-            return lookup.findVirtual(ClientPlayerEntity.class, "mayFly", MethodType.methodType(boolean.class));
+            return lookup.findVirtual(LocalPlayer.class, "mayFly", MethodType.methodType(boolean.class));
         } catch (NoSuchMethodException e) {
             return null;
         } catch (IllegalAccessException e) {
@@ -65,12 +65,12 @@ public class MixinClientPlayerEntity {
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "net/minecraft/client/network/AbstractClientPlayerEntity.tick()V",
+                    target = "net/minecraft/client/player/AbstractClientPlayer.tick()V",
                     shift = At.Shift.AFTER
             )
     )
     private void onPreUpdate(CallbackInfo ci) {
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone != null) {
             baritone.getGameEventHandler().onPlayerUpdate(new PlayerUpdateEvent(EventState.PRE));
         }
@@ -80,28 +80,28 @@ public class MixinClientPlayerEntity {
             method = "tickMovement",
             at = @At(
                     value = "FIELD",
-                    target = "net/minecraft/entity/player/PlayerAbilities.allowFlying:Z"
+                    target = "net/minecraft/world/entity/player/Abilities.mayfly:Z"
             )
     )
     @Group(name = "mayFly", min = 1, max = 1)
-    private boolean isAllowFlying(PlayerAbilities capabilities) {
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+    private boolean isAllowFlying(Abilities capabilities) {
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone == null) {
-            return capabilities.allowFlying;
+            return capabilities.mayfly;
         }
-        return !baritone.getPathingBehavior().isPathing() && capabilities.allowFlying;
+        return !baritone.getPathingBehavior().isPathing() && capabilities.mayfly;
     }
 
     @Redirect(
         method = "tickMovement",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/network/ClientPlayerEntity;mayFly()Z"
+            target = "Lnet/minecraft/client/player/LocalPlayer;mayFly()Z"
         )
     )
     @Group(name = "mayFly", min = 1, max = 1)
-    private boolean onMayFlyNeoforge(ClientPlayerEntity instance) throws Throwable {
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+    private boolean onMayFlyNeoforge(LocalPlayer instance) throws Throwable {
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone == null) {
             return (boolean) MAY_FLY.invokeExact(instance);
         }
@@ -112,11 +112,11 @@ public class MixinClientPlayerEntity {
             method = "tickMovement",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/PlayerInput;sprint()Z"
+                    target = "Lnet/minecraft/util/Input;sprint()Z"
             )
     )
-    private boolean redirectSprintInput(final PlayerInput instance) {
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+    private boolean redirectSprintInput(final Input instance) {
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone == null) {
             return instance.sprint();
         }
@@ -139,7 +139,7 @@ public class MixinClientPlayerEntity {
             )
     )
     private void updateRidden(CallbackInfo cb) {
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone != null) {
             baritone.getLookBehavior().pig();
         }
@@ -149,15 +149,15 @@ public class MixinClientPlayerEntity {
             method = "tickMovement",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/network/ClientPlayerEntity;checkGliding()Z"
+                    target = "Lnet/minecraft/client/player/LocalPlayer;checkGliding()Z"
             )
     )
-    private boolean tryToStartFallFlying(final ClientPlayerEntity instance) {
+    private boolean tryToStartFallFlying(final LocalPlayer instance) {
         IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer(instance);
         if (baritone != null && baritone.getPathingBehavior().isPathing()) {
             return false;
         }
-        return instance.checkGliding();
+        return instance.tryToStartFallFlying();
     }
 
     @Inject(
@@ -169,7 +169,7 @@ public class MixinClientPlayerEntity {
         if (!Baritone.settings().smoothLook.value) {
             return;
         }
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone != null) {
             ILookBehavior look = baritone.getLookBehavior();
             cir.setReturnValue(look.getSmoothedYaw(cir.getReturnValue()));
@@ -185,7 +185,7 @@ public class MixinClientPlayerEntity {
         if (!Baritone.settings().smoothLook.value) {
             return;
         }
-        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
+        IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((LocalPlayer) (Object) this);
         if (baritone != null) {
             ILookBehavior look = baritone.getLookBehavior();
             cir.setReturnValue(look.getSmoothedPitch(cir.getReturnValue()));
