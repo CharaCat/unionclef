@@ -33,12 +33,12 @@ public class MixinClientChunkProvider implements IClientChunkProvider {
 
     @Final
     @Shadow
-    ClientLevel world;
+    ClientLevel level;
 
     @Override
     public ClientChunkCache createThreadSafeCopy() {
         IChunkArray arr = extractReferenceArray();
-        ClientChunkCache result = new ClientChunkCache(world, arr.viewDistance() - 3); // -3 because its adds 3 for no reason lmao
+        ClientChunkCache result = new ClientChunkCache(level, arr.viewDistance() - 3); // -3 because its adds 3 for no reason lmao
         IChunkArray copyArr = ((IClientChunkProvider) result).extractReferenceArray();
         copyArr.copyFrom(arr);
         if (copyArr.viewDistance() != arr.viewDistance()) {
